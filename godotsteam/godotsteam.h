@@ -153,6 +153,13 @@ class Steam: public Object {
 		enum UserRestriction {
 			USER_RESTRICTION_NONE = 0, USER_RESTRICTION_UNKNOWN = 1, USER_RESTRICTION_ANY_CHAT = 2, USER_RESTRICTION_VOICE_CHAT = 4, USER_RESTRICTION_GROUP_CHAT = 8, USER_RESTRICTION_RATING = 16, USER_RESTRICTION_GAME_INVITES = 32, USER_RESTRICTION_TRADING = 64
 		};
+		enum CommunityProfileItemType {
+			PROFILE_ITEM_TYPE_ANIMATED_AVATAR = 0, PROFILE_ITEM_TYPE_AVATAR_FRAME = 1, PROFILE_ITEM_TYPE_PROFILE_MODIFIER = 2, PROFILE_ITEM_TYPE_PROFILE_BACKGROUND = 3, PROFILE_ITEM_TYPE_MINI_PROFILE_BACKGROUND = 4
+		};
+		enum CommunityProfileItemProperty {
+			PROFILE_ITEM_PROPERTY_IMAGE_SMALL = 0, PROFILE_ITEM_PROPERTY_IMAGE_LARGE = 1, PROFILE_ITEM_PROPERTY_INTERNAL_NAME = 2, PROFILE_ITEM_PROPERTY_TITLE = 3, PROFILE_ITEM_PROPERTY_DESCRIPTION = 4, PROFILE_ITEM_PROPERTY_APP_ID = 5, PROFILE_ITEM_PROPERTY_TYPE_ID = 6, PROFILE_ITEM_PROPERTY_CLASS = 7, PROFILE_ITEM_PROPERTY_MOVIE_WEBM = 8,
+			PROFILE_ITEM_PROPERTY_MOVIE_MP4 = 9, PROFILE_ITEM_PROPERTY_MOVIE_WEBM_SMALL = 10, PROFILE_ITEM_PROPERTY_MOVIE_MP4_SMALL = 11
+		};
 
 		// Game Search enums
 		enum GameSearchErrorCode {
@@ -324,7 +331,7 @@ class Steam: public Object {
 			CONNECTION_END_MISC_NO_RELAY_SESSIONS_TO_CLIENT = 5006, CONNECTION_END_MISC_MAX = 5999
 		};
 		enum NetworkingIdentityType {
-			IDENTITY_TYPE_INVALID = 0, IDENTITY_TYPE_STEAMID = 16, IDENTITY_TYPE_IP_ADDRESS = 1, IDENTITY_TYPE_GENERIC_STRING = 2, IDENTITY_TYPE_GENERIC_BYTES = 3, IDENTITY_TYPE_FORCE_32BIT = 0x7fffffff
+			IDENTITY_TYPE_INVALID = 0, IDENTITY_TYPE_STEAMID = 16, IDENTITY_TYPE_IP_ADDRESS = 1, IDENTITY_TYPE_GENERIC_STRING = 2, IDENTITY_TYPE_GENERIC_BYTES = 3, IDENTITY_TYPE_UNKNOWN_TYPE = 4, IDENTITY_TYPE_XBOX_PAIRWISE = 17, IDENTITY_TYPE_SONY_PSN = 18, IDENTITY_TYPE_GOOGLE_STADIA = 19, IDENTITY_TYPE_FORCE_32BIT = 0x7fffffff
 		};
 		enum NetworkingSocketsDebugOutputType {
 			NETWORKING_SOCKET_DEBUG_OUTPUT_TYPE_NONE = 0, NETWORKING_SOCKET_DEBUG_OUTPUT_TYPE_BUG = 1, NETWORKING_SOCKET_DEBUG_OUTPUT_TYPE_ERROR = 2, NETWORKING_SOCKET_DEBUG_OUTPUT_TYPE_IMPORTANT = 3, NETWORKING_SOCKET_DEBUG_OUTPUT_TYPE_WARNING = 4, NETWORKING_SOCKET_DEBUG_OUTPUT_TYPE_MSG = 5, NETWORKING_SOCKET_DEBUG_OUTPUT_TYPE_VERBOSE = 6,
@@ -580,12 +587,15 @@ class Steam: public Object {
 		int getPersonaState();
 		void getPlayerAvatar(int size = 2, uint64_t steam_id = 0);
 		String getPlayerNickname(uint64_t steam_id);
+		String getProfileItemPropertyString(uint64_t steam_id, int item_type, int item_property);
+		uint32 getProfileItemPropertyInt(uint64_t steam_id, int item_type, int item_property);
 		Array getRecentPlayers();
 		int getSmallFriendAvatar(uint64_t steam_id);
 		Array getUserFriendsGroups();
 		uint32 getUserRestrictions();
 		Array getUserSteamFriends();
 		Array getUserSteamGroups();
+		bool hasEquippedProfileItem(uint64_t steam_id, int item_type);
 		bool hasFriend(uint64_t steam_id, int friend_flags);
 		bool inviteUserToGame(uint64_t friend_id, const String& connect_string);
 		bool isClanChatAdmin(uint64_t chat_id, uint64_t steam_id);
@@ -786,39 +796,39 @@ class Steam: public Object {
 		String getStringForAnalogActionName(uint64_t action_handle);
 
 		// Inventory ////////////////////////////
-		bool addPromoItem(uint32 item);
-		bool addPromoItems(PoolIntArray items);
-		bool checkResultSteamID(uint64_t steam_id_expected);
-		bool consumeItem(uint64_t item_consume, uint32 quantity);
-		bool deserializeResult();
-		void destroyResult();
-		bool exchangeItems(const PoolIntArray output_items, const uint32 output_quantity, const uint64_t input_items, const uint32 input_quantity);
-		bool generateItems(const PoolIntArray items, const uint32 quantity);
-		bool getAllItems();
+		int32 addPromoItem(uint32 item);
+		int32 addPromoItems(PoolIntArray items);
+		bool checkResultSteamID(uint64_t steam_id_expected, int32 this_inventory_handle = 0);
+		int32 consumeItem(uint64_t item_consume, uint32 quantity);
+		int32 deserializeResult(PoolByteArray buffer);
+		void destroyResult(int32 this_inventory_handle = 0);
+		int32 exchangeItems(const PoolIntArray output_items, const uint32 output_quantity, const uint64_t input_items, const uint32 input_quantity);
+		int32 generateItems(const PoolIntArray items, const uint32 quantity);
+		int32 getAllItems();
 		String getItemDefinitionProperty(uint32 definition, const String& name);
-		bool getItemsByID(const uint64_t id_array, uint32 count);
+		int32 getItemsByID(const uint64_t id_array, uint32 count);
 		uint64_t getItemPrice(uint32 definition);
 		Array getItemsWithPrices(uint32 length);
 		uint32 getNumItemsWithPrices();
-		String getResultItemProperty(uint32 index, const String& name);
-		Array getResultItems();
-		String getResultStatus();
-		uint32 getResultTimestamp();
-		bool grantPromoItems();
+		String getResultItemProperty(uint32 index, const String& name, int32 this_inventory_handle = 0);
+		Array getResultItems(int32 this_inventory_handle = 0);
+		String getResultStatus(int32 this_inventory_handle = 0);
+		uint32 getResultTimestamp(int32 this_inventory_handle = 0);
+		int32 grantPromoItems();
 		bool loadItemDefinitions();
 		void requestEligiblePromoItemDefinitionsIDs(uint64_t steam_id);
 		void requestPrices();
-		bool serializeResult();
+		String serializeResult(int32 this_inventory_handle = 0);
 		void startPurchase(const PoolIntArray items, const uint32 quantity);
-		bool transferItemQuantity(uint64_t item_id, uint32 quantity, uint64_t item_destination, bool split);
-		bool triggerItemDrop(uint32 definition);
+		int32 transferItemQuantity(uint64_t item_id, uint32 quantity, uint64_t item_destination, bool split);
+		int32 triggerItemDrop(uint32 definition);
 		void startUpdateProperties();
-		bool submitUpdateProperties();
-		bool removeProperty(uint64_t item_id, const String& name);
-		bool setPropertyString(uint64_t item_id, const String& name, const String& value);
-		bool setPropertyBool(uint64_t item_id, const String& name, bool value);
-		bool setPropertyInt(uint64_t item_id, const String& name, uint64_t value);
-		bool setPropertyFloat(uint64_t item_id, const String& name, float value);
+		int32 submitUpdateProperties(int32 this_inventory_update_handle = 0);
+		bool removeProperty(uint64_t item_id, const String& name, int32 this_inventory_update_handle = 0);
+		bool setPropertyString(uint64_t item_id, const String& name, const String& value, int32 this_inventory_update_handle = 0);
+		bool setPropertyBool(uint64_t item_id, const String& name, bool value, int32 this_inventory_update_handle = 0);
+		bool setPropertyInt(uint64_t item_id, const String& name, uint64_t value, int32 this_inventory_update_handle = 0);
+		bool setPropertyFloat(uint64_t item_id, const String& name, float value, int32 this_inventory_update_handle = 0);
 
 		// Matchmaking //////////////////////////
 		Array getFavoriteGames();
@@ -934,7 +944,7 @@ class Steam: public Object {
 		bool closeSessionWithUser(const String& identity_reference);
 		Dictionary getSessionConnectionInfo(const String& identity_reference, bool get_connection, bool get_status);
 		Array receiveMessagesOnChannel(int channel, int max_messages);
-		int sendMessageToUser(const String& identity_reference, const String& message, int flags, int channel);
+		int sendMessageToUser(const String& identity_reference, const PoolByteArray data, int flags, int channel);
 		
 		// Networking Sockets ///////////////////
 		int acceptConnection(uint32 connection);
@@ -975,8 +985,8 @@ class Steam: public Object {
 //		Dictionary receivedRelayAuthTicket();	<------ Uses datagram relay structs which were removed from base SDK
 		void resetIdentity(const String& this_identity);
 		void runNetworkingCallbacks();
-		void sendMessages(int messages, const PoolStringArray& message, uint32 connection_handle, int flags);
-		Dictionary sendMessageToConnection(uint32 connection_handle, const String& message, int flags);
+		void sendMessages(int messages, const PoolByteArray data, uint32 connection_handle, int flags);
+		Dictionary sendMessageToConnection(uint32 connection_handle, const PoolByteArray data, int flags);
 		Dictionary setCertificate(const PoolByteArray& certificate);		
 		bool setConnectionPollGroup(uint32 connection_handle, uint32 poll_group);
 		void setConnectionName(uint32 peer, const String& name);
@@ -994,6 +1004,9 @@ class Steam: public Object {
 		uint64_t getIdentitySteamID64(const String& reference_name);
 		Array getIPAddresses();
 		uint32 getIPv4(const String& reference_name);
+		uint64_t getPSNID(const String& reference_name);
+		uint64_t getStadiaID(const String& reference_name);
+		String getXboxPairwiseID(const String& reference_name);
 		bool isAddressLocalHost(const String& reference_name);
 		bool isIdentityInvalid(const String& reference_name);
 		bool isIdentityLocalHost(const String& reference_name);
@@ -1010,6 +1023,9 @@ class Steam: public Object {
 		void setIPv4(const String& reference_name, uint32 ip, uint16 port);
 		void setIPv6(const String& reference_name, uint8 ipv6, uint16 port);
 		void setIPv6LocalHost(const String& reference_name, uint16 port = 0);
+		void setPSNID(const String& reference_name, uint64_t psn_id);
+		void setStadiaID(const String& reference_name, uint64_t stadia_id);
+		bool setXboxPairwiseID(const String& reference_name, const String& xbox_id);
 		String toIdentityString(const String& reference_name);
 		String toIPAddressString(const String& reference_name, bool with_port);		
 		const SteamNetworkingConfigValue_t* convertOptionsArray(Array options);
@@ -1139,7 +1155,7 @@ class Steam: public Object {
 		Dictionary getItemUpdateProgress(uint64_t update_handle);
 		uint32 getNumSubscribedItems();
 		Dictionary getQueryUGCAdditionalPreview(uint64_t query_handle, uint32 index, uint32 preview_index);
-		Dictionary getQueryUGCChildren(uint64_t query_handle, uint32 index);
+		Dictionary getQueryUGCChildren(uint64_t query_handle, uint32 index, uint32_t child_count);
 		Dictionary getQueryUGCKeyValueTag(uint64_t query_handle, uint32 index, uint32 key_value_tag_index);
 		String getQueryUGCMetadata(uint64_t query_handle, uint32 index);
 		uint32 getQueryUGCNumAdditionalPreviews(uint64_t query_handle, uint32 index);
@@ -1422,6 +1438,8 @@ class Steam: public Object {
 		STEAM_CALLBACK(Steam, name_changed, SetPersonaNameResponse_t, callbackNameChanged);
 		STEAM_CALLBACK(Steam, overlay_browser_protocol, OverlayBrowserProtocolNavigation_t, callbackOverlayBrowserProtocol);
 		STEAM_CALLBACK(Steam, unread_chat_messages_changed, UnreadChatMessagesChanged_t, callbackUnreadChatMessagesChanged);
+		STEAM_CALLBACK(Steam, equipped_profile_items_changed, EquippedProfileItemsChanged_t, callbackEquippedProfileItemsChanged);
+		STEAM_CALLBACK(Steam, equipped_profile_items, EquippedProfileItems_t, callbackEquippedProfileItems);
 
 		// Game Search callbacks ////////////////
 		STEAM_CALLBACK(Steam, search_for_game_progress, SearchForGameProgressCallback_t, callbackSearchForGameProgress);

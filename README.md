@@ -16,7 +16,35 @@ Feel free to chat with us about GodotSteam on the [CoaguCo Discord server](https
 
 Current Build
 ----------
-You can [download pre-compiled versions _(currently v3.13.2)_ of this repo here](https://github.com/Gramps/GodotSteam/releases).
+You can [download pre-compiled versions _(currently v3.14)_ of this repo here](https://github.com/Gramps/GodotSteam/releases).
+
+**Version 3.16.1 Changes**
+- Fixed: issues with getPSNID and getStadiaID functions when compiling on Linux
+
+**Version 3.16 Changes**
+- Added: new enums for Community Profile item types and properties in Friends class
+- Added: new functions hasEquippedProfileItem, getProfileItemPropertyString, and getProfileItemPropertyInt in Friends class
+- Added: new callbacks/signals _equipped_profile_items_changed_ and _equipped_profile_items_ in Friends class
+- Added: new networking identity types
+- Added: new functions setXboxPairwiseID, getXboxPairwiseID, setPSNID, getPSNID, setStadiaID, and getStadiaID to Networking Types class
+- Changed: minor correction to createListenSocketP2P in attempt to fix possible crash
+
+**Version 3.15 Changes**
+- Changed: sendMessageToConnection and sendMessages now take PoolByteArrays to send any data
+- Fixed: issue with receiving messages, now allows more than one at a time; _thanks to Frostings_
+- Fixed: getQueryUGCChildren not working correctly; _thanks to EIREXE_
+
+**Version 3.14 Changes**
+- Added: inventory handle argument to various Inventory class functions, defaults to 0 to use internally store argument
+- Changed: various Inventory class functions to send back the new inventory handle as well as storing it internally
+- Fixed: various string issues; _thanks to Green Fox_
+- Fixed: _file_read_async_complete_ call result not sending back the file buffer
+- Fixed: missing variant type for _avatar_loaded_ signal
+- Fixed: _enumerate_following_list_ calling the wrong signal name
+- Fixed: print of Steamworks error didn't contain signal name
+- Fixed: some variable and argument names
+- Fixed: deserializeResult to accept incoming PoolByteArray buffer
+- Fixed: various message functions in new networking classes; _thanks to Avantir-Chaosfire_
 
 **Version 3.13.3 Changes**
 - Fixed: get correct size of lobby message in sendLobbyChatMsg; _thanks to Green Fox_
