@@ -17,6 +17,7 @@ setup()
 
 cleanup()
 {
+    #cleanup
     rm -rf out.zip sdk
 }
 
