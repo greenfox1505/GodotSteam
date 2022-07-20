@@ -3,10 +3,15 @@
 #include "core/engine.h"
 #include "godotsteam.h"
 
+#include "steam_network_peer.h"
+#include "steam_id.h"
+
 static Steam* SteamPtr = NULL;
 
 void register_godotsteam_types(){
 	ClassDB::register_class<Steam>();
+	ClassDB::register_class<SteamNetworkPeer>();
+	ClassDB::register_class<SteamId>();
 	SteamPtr = memnew(Steam);
 	Engine::get_singleton()->add_singleton(Engine::Singleton("Steam",Steam::get_singleton()));
 }
