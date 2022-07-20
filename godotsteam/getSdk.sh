@@ -25,6 +25,7 @@ pullSDK()
     curl -o out.zip https://partner.steamgames.com/downloads/steamworks_sdk.zip
     unzip out.zip
     rm out.zip
+    echo "*" > sdk/.gitignore
 }
 
 
