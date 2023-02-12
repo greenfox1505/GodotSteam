@@ -21,3 +21,6 @@ sdk/*
 
 # Doxygen
 doxygen/
+
+# Visual Studio adds
+*.obj
