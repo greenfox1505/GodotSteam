@@ -1,0 +1,315 @@
+[gd_scene load_steps=9 format=3 uid="uid://d4cyor045brlr"]
+
+[ext_resource type="Texture2D" uid="uid://c056bh175wcr" path="res://icon.svg" id="1_44y2y"]
+[ext_resource type="PackedScene" uid="uid://bx6j1445ndl7x" path="res://mp_character.tscn" id="2_tthkw"]
+
+[sub_resource type="GDScript" id="GDScript_xoiub"]
+script/source = "extends Node
+
+
+@export var netPort = 8888
+@export var clearOldMessages = true
+
+var peer:ENetMultiplayerPeer = null
+
+var mpInterface:MultiplayerAPI
+
+signal playerConnected(id:int)
+signal playerDisconnected(id:int)
+signal gameStart()
+signal gameEnd()
+
+func _ready():
+	mpInterface = MultiplayerAPI.create_default_interface()
+	get_tree().set_multiplayer(mpInterface)
+	
+	mpInterface.connected_to_server.connect(connected_to_server)
+	mpInterface.connection_failed.connect(connection_failed)
+	mpInterface.peer_connected.connect(peer_connected)
+	mpInterface.peer_disconnected.connect(peer_disconnected)
+	mpInterface.server_disconnected.connect(server_disconnected)
+	createMsg(\"start up!\")
+
+
+func _on_host_pressed():
+	cleanupNetwork()
+	var peer := ENetMultiplayerPeer.new()
+	var a = peer.create_server(netPort)
+
+	mpInterface.set_multiplayer_peer(peer)
+	createMsg(\"hosting!\")
+	%state.text = \"HOSTING\"
+	gameStart.emit()
+
+func _on_join_pressed():
+	cleanupNetwork()
+	
+	var peer := ENetMultiplayerPeer.new()
+	var a = peer.create_client(\"localhost\",netPort)
+	mpInterface.set_multiplayer_peer(peer)
+	createMsg(\"joining!\")
+	%state.text = \"JOINING!\"
+	
+
+func _on_quit_pressed():
+	cleanupNetwork()
+	%state.text = \"QUITED!\"
+
+
+func cleanupNetwork():
+	if peer == null:
+		return
+	peer.close()
+	peer = null
+
+
+func createMsg(msg:String):
+	var box := %messageQueue
+	var l = Label.new()
+	l.text = msg
+	box.add_child(l)
+	if clearOldMessages:
+		await(get_tree().create_timer(10).timeout)
+		l.queue_free()
+
+
+func connected_to_server():
+	gameStart.emit()
+	createMsg(\"connected_to_server\")
+	%state.text = \"CONNECTED!\"
+
+
+func connection_failed():
+	createMsg(\"connection_failed\")
+	%state.text = \"FAILED TO CONNECT!\"
+
+
+func peer_connected(n:int):
+	playerConnected.emit(n)
+	createMsg(\"peer_connected :%d\" % n)
+
+
+func peer_disconnected(n:int):
+	playerDisconnected.emit(n)
+	createMsg(\"peer_disconnected :%d\" % n)
+
+
+func server_disconnected():
+	createMsg(\"server_disconnected\")
+	%state.text = \"DISCONNECTED!\"
+	gameEnd.emit()
+"
+
+[sub_resource type="GDScript" id="GDScript_kw7au"]
+script/source = "extends VBoxContainer
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready():
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta):
+	pass
+
+
+func _on_button_pressed():
+	rpc(\"playPing\")
+	pass # Replace with function body.
+
+
+@rpc(\"any_peer\", \"call_local\")
+func playPing():
+	$AnimationPlayer.play(\"ping\")
+"
+
+[sub_resource type="Animation" id="Animation_4x4ii"]
+resource_name = "ping"
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("icon:self_modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 1),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Color(1, 0, 0, 1), Color(1, 1, 1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_5so1b"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("icon:self_modulate")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Color(1, 1, 1, 1)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_l4pwk"]
+_data = {
+"RESET": SubResource("Animation_5so1b"),
+"ping": SubResource("Animation_4x4ii")
+}
+
+[sub_resource type="GDScript" id="GDScript_ra7gh"]
+script/source = "extends Node
+
+@export var character:PackedScene
+
+var players := {}
+
+func _ready():
+	$PlayerSpawner.spawn_function = spawnPlayer
+	pass
+
+
+func spawnPlayer(id)->Node:
+	var p = character.instantiate()
+	p.set_multiplayer_authority(id)
+	p.name = \"player%d\" % id
+#	add_child(p,true)
+	players[id] = p
+	return p
+
+func _on_node_game_start():
+	
+	var id = get_tree().get_multiplayer().get_unique_id()
+	if id == 1:
+		$PlayerSpawner.spawn(id)
+#	spawnPlayer(id)
+	
+#	$MultiplayerSpawner.spawn()
+#	pass # Replace with function body.
+
+
+func _on_node_player_connected(id):
+	if is_multiplayer_authority():
+		$PlayerSpawner.spawn(id)
+
+
+func _on_node_player_disconnected(id):
+	if is_multiplayer_authority():
+		players[id].free()
+		players.erase(id)
+"
+
+[node name="Node" type="Node"]
+script = SubResource("GDScript_xoiub")
+clearOldMessages = false
+
+[node name="connectPanel" type="PanelContainer" parent="."]
+offset_left = 112.0
+offset_top = 104.0
+offset_right = 623.0
+offset_bottom = 411.0
+
+[node name="MarginContainer" type="MarginContainer" parent="connectPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="connectPanel/MarginContainer"]
+layout_mode = 2
+
+[node name="state" type="Label" parent="connectPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Not Running"
+horizontal_alignment = 1
+
+[node name="HBoxContainer" type="HBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="VBoxContainer" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="Host" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+focus_mode = 0
+text = "Host"
+
+[node name="Join" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+focus_mode = 0
+text = "Join
+"
+
+[node name="Quit" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+focus_mode = 0
+text = "Quit"
+
+[node name="Label" type="Label" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="ScrollContainer" type="ScrollContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 0
+
+[node name="messageQueue" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/ScrollContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="spacer" type="Control" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/ScrollContainer/messageQueue"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="pingPanel" type="VBoxContainer" parent="."]
+offset_left = 849.0
+offset_top = 184.0
+offset_right = 977.0
+offset_bottom = 347.0
+script = SubResource("GDScript_kw7au")
+
+[node name="icon" type="TextureRect" parent="pingPanel"]
+layout_mode = 2
+texture = ExtResource("1_44y2y")
+
+[node name="Button" type="Button" parent="pingPanel"]
+layout_mode = 2
+focus_mode = 0
+text = "ping!"
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="pingPanel"]
+speed_scale = 5.0
+libraries = {
+"": SubResource("AnimationLibrary_l4pwk")
+}
+
+[node name="dumbGame" type="Node" parent="."]
+script = SubResource("GDScript_ra7gh")
+character = ExtResource("2_tthkw")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="dumbGame"]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="dumbGame/StaticBody2D"]
+polygon = PackedVector2Array(0, 0, 0, 648, 1152, 648, 1152, 0, 0, 0, -64, -64, 1216, -64, 1216, 712, -64, 712, -64, -64)
+
+[node name="PlayerSpawner" type="MultiplayerSpawner" parent="dumbGame"]
+_spawnable_scenes = PackedStringArray("res://mp_character.tscn")
+spawn_path = NodePath("..")
+
+[connection signal="gameEnd" from="." to="dumbGame" method="_on_node_game_end"]
+[connection signal="gameStart" from="." to="dumbGame" method="_on_node_game_start"]
+[connection signal="playerConnected" from="." to="dumbGame" method="_on_node_player_connected"]
+[connection signal="playerDisconnected" from="." to="dumbGame" method="_on_node_player_disconnected"]
+[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/Host" to="." method="_on_host_pressed"]
+[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/Join" to="." method="_on_join_pressed"]
+[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/VBoxContainer/Quit" to="." method="_on_quit_pressed"]
+[connection signal="pressed" from="pingPanel/Button" to="pingPanel" method="_on_button_pressed"]
