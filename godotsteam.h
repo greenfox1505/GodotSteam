@@ -34,6 +34,125 @@
 // Include some system headers
 #include "map"
 
+
+/////////////////////////////////////////////////
+///// DEFINING CONSTANTS
+/////////////////////////////////////////////////
+//
+// Define Steam API constants
+#define INVALID_BREAKPAD_HANDLE 0
+#define GAME_EXTRA_INFO_MAX 64
+#define AUTH_TICKET_INVALID 0
+#define API_CALL_INVALID 0x0
+#define APP_ID_INVALID 0x0
+#define DEPOT_ID_INVALID 0x0
+#define STEAM_ACCOUNT_ID_MASK 0xFFFFFFFF
+#define STEAM_ACCOUNT_INSTANCE_MASK 0x000FFFFF
+#define STEAM_USER_CONSOLE_INSTANCE 2
+#define STEAM_USER_DESKTOP_INSTANCE 1
+#define STEAM_USER_WEB_INSTANCE 4
+#define QUERY_PORT_ERROR 0xFFFE
+#define QUERY_PORT_NOT_INITIALIZED 0xFFFF
+#define STEAM_BUFFER_SIZE 255
+#define STEAM_LARGE_BUFFER_SIZE 8160
+
+// Define Friends constants
+#define CHAT_METADATA_MAX 8192
+#define ENUMERATED_FOLLOWERS_MAX 50
+#define FRIENDS_GROUP_LIMIT 100
+#define INVALID_FRIEND_GROUP_ID -1
+#define MAX_FRIENDS_GROUP_NAME 64
+#define MAX_RICH_PRESENCE_KEY_LENGTH 64
+#define MAX_RICH_PRESENCE_KEYS 20
+#define MAX_RICH_PRESENCE_VALUE_LENTH 256
+#define PERSONA_NAME_MAX_UTF8 128
+#define PERSONA_NAME_MAX_UTF16 32
+
+// Define HTML Surface constants
+#define INVALID_HTMLBROWSER 0
+
+// Define HTTP constants
+#define HTTPCOOKIE_INVALID_HANDLE 0
+#define HTTPREQUEST_INVALID_HANDLE 0
+
+// Define Input constants
+#define INPUT_MAX_ANALOG_ACTIONS STEAM_INPUT_MAX_ANALOG_ACTIONS
+#define INPUT_MAX_COUNT STEAM_INPUT_MAX_COUNT
+#define INPUT_MAX_DIGITAL_ACTIONS STEAM_INPUT_MAX_DIGITAL_ACTIONS
+#define INPUT_MAX_ORIGINS STEAM_INPUT_MAX_ORIGINS
+#define INPUT_MAX_ANALOG_ACTION_DATA STEAM_INPUT_MAX_ANALOG_ACTION_DATA
+#define INPUT_MIN_ANALOG_ACTION_DATA STEAM_INPUT_MIN_ANALOG_ACTION_DATA
+
+// Define Inventory constants
+#define INVENTORY_RESULT_INVALID -1
+#define ITEM_INSTANCE_ID_INVALID 0
+
+// Define Matchmaking constants
+#define SERVER_QUERY_INVALID 0xffffffff
+#define MAX_LOBBY_KEY_LENGTH 255
+#define FAVORITE_FLAG_FAVORITE 0x01
+#define FAVORITE_FLAG_HISTORY 0x02
+#define FAVORITE_FLAG_NONE 0x00
+
+// Define Matchmaking Servers constants
+#define MAX_GAME_SERVER_GAME_DATA 2048
+#define MAX_GAME_SERVER_GAME_DESCRIPTION 64
+#define MAX_GAME_SERVER_GAME_DIR 32
+#define MAX_GAME_SERVER_MAP_NAME 32
+#define MAX_GAME_SERVER_NAME 64
+#define MAX_GAME_SERVER_TAGS 128
+
+// Define Music Remote constants
+#define MUSIC_NAME_MAX_LENGTH 255
+#define MUSIC_PNG_MAX_LENGTH 65535
+
+// Define Networking Message constants
+#define NETWORKING_SEND_UNRELIABLE 0
+#define NETWORKING_SEND_NO_NAGLE 1
+#define NETWORKING_SEND_NO_DELAY 4
+#define NETWORKING_SEND_RELIABLE 8
+
+// Define Remote Play constants
+#define DEVICE_FORM_FACTOR_UNKNOWN 0
+#define DEVICE_FORM_FACTOR_PHONE 1
+#define DEVICE_FORM_FACTOR_TABLET 2
+#define DEVICE_FORM_FACTOR_COMPUTER 3
+#define DEVICE_FORM_FACTOR_TV 4
+
+// Define Remote Storage constants
+#define FILE_NAME_MAX k_cchFilenameMax
+#define PUBLISHED_DOCUMENT_CHANGE_DESCRIPTION_MAX k_cchPublishedDocumentChangeDescriptionMax
+#define PUBLISHED_DOCUMENT_DESCRIPTION_MAX k_cchPublishedDocumentDescriptionMax
+#define PUBLISHED_DOCUMENT_TITLE_MAX k_cchPublishedDocumentTitleMax
+#define PUBLISHED_FILE_URL_MAX k_cchPublishedFileURLMax
+#define TAG_LIST_MAX k_cchTagListMax
+#define PUBLISHED_FILE_ID_INVALID k_PublishedFileIdInvalid
+#define PUBLISHED_FILE_UPDATE_HANDLE_INVALID k_PublishedFileIdInvalid
+#define UGC_FILE_STREAM_HANDLE_INVALID k_UGCFileStreamHandleInvalid
+#define UGC_HANDLE_INVALID k_UGCHandleInvalid
+#define ENUMERATE_PUBLISHED_FILES_MAX_RESULTS k_unEnumeratePublishedFilesMaxResults
+#define MAX_CLOUD_FILE_CHUNK_SIZE k_unMaxCloudFileChunkSize
+
+// Define Screenshot constants
+#define SCREENSHOT_INVALID_HANDLE 0
+#define UFS_TAG_TYPE_MAX 255
+#define UFS_TAG_VALUE_MAX 255
+#define MAX_TAGGED_PUBLISHED_FILES 32
+#define MAX_TAGGED_USERS 32
+#define SCREENSHOT_THUMB_WIDTH 200
+
+// Define UGC constants
+#define NUM_UGC_RESULTS_PER_PAGE 50
+#define DEVELOPER_METADATA_MAX 5000
+#define UGC_QUERY_HANDLE_INVALID 0
+#define UGC_UPDATE_HANDLE_INVALID 0
+
+// Define User Stats constants
+#define LEADERBOARD_DETAIL_MAX 64
+#define LEADERBOARD_NAME_MAX 128
+#define STAT_NAME_MAX 128
+
+
 class Steam: public Object {
 	GDCLASS(Steam, Object);
 
