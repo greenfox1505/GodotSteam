@@ -89,7 +89,7 @@
 
 // Define Matchmaking constants
 #define SERVER_QUERY_INVALID 0xffffffff
-#define MAX_LOBBY_KEY_LENGTH 255
+#define MAX_LOBBY_KEY_LENGTH k_nMaxLobbyKeyLength
 #define FAVORITE_FLAG_FAVORITE 0x01
 #define FAVORITE_FLAG_HISTORY 0x02
 #define FAVORITE_FLAG_NONE 0x00
@@ -111,6 +111,8 @@
 #define NETWORKING_SEND_NO_NAGLE 1
 #define NETWORKING_SEND_NO_DELAY 4
 #define NETWORKING_SEND_RELIABLE 8
+
+#define MAX_STEAM_PACKET_SIZE k_cbMaxSteamNetworkingSocketsMessageSizeSend
 
 // Define Remote Play constants
 #define DEVICE_FORM_FACTOR_UNKNOWN 0

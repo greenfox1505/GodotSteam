@@ -123,12 +123,14 @@ script/source = "extends VBoxContainer
 
 @export var useSteam =false
 
+var peer := SteamMultiplayerPeer.new()
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	var a = Steam.steamInit()
 	assert(a.status == 1,\"steam did not init properly. msg:\" + a.verbal )
-
-
+	
+	peer.lobby_created.connect(lobby_created)
+	
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
 	Steam.run_callbacks() #this should migrate to a static global
@@ -136,7 +138,19 @@ func _process(delta):
 
 
 func _on_host_pressed():
+	
+	peer.create_lobby(SteamMultiplayerPeer.FRIENDS_ONLY,99)
+	
+	get_tree().get_multiplayer().set_multiplayer_peer(peer)
 	pass # Replace with function body.
+
+
+func lobby_created(m_eResult,lobbyId):
+	assert(m_eResult==1,\"lobby failed to build\")
+	
+	print(\"lobbyID: %s\" %lobbyId)
+	
+	pass
 "
 
 [sub_resource type="GDScript" id="GDScript_kw7au"]
