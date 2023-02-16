@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://d4cyor045brlr"]
+[gd_scene load_steps=12 format=3 uid="uid://d4cyor045brlr"]
 
 [ext_resource type="Texture2D" uid="uid://c056bh175wcr" path="res://icon.svg" id="1_44y2y"]
 [ext_resource type="PackedScene" uid="uid://bx6j1445ndl7x" path="res://mp_character.tscn" id="2_tthkw"]
@@ -76,6 +76,33 @@ func server_disconnected():
 	createMsg(\"server_disconnected\")
 	%state.text = \"DISCONNECTED!\"
 	gameEnd.emit()
+
+
+func startGame():
+	gameStart.emit()
+#	gameStart.emit()
+"
+
+[sub_resource type="GDScript" id="GDScript_yp1g5"]
+script/source = "extends HBoxContainer
+
+#enum DECIDE_MULTIPLAYER {
+#	STEAM,
+#	ENET
+#}
+#
+#
+#@export var multiplayerBackend:DECIDE_MULTIPLAYER = DECIDE_MULTIPLAYER.STEAM
+#
+#
+#func _ready():
+#	match multiplayerBackend:
+#		DECIDE_MULTIPLAYER.STEAM:
+#			%steam.visible = true
+#			%enet.visible = false
+#		DECIDE_MULTIPLAYER.ENET:
+#			%steam.visible = false
+#			%enet.visible = true
 "
 
 [sub_resource type="GDScript" id="GDScript_v4g54"]
@@ -83,7 +110,11 @@ script/source = "extends VBoxContainer
 
 @export var netPort = 8888
 
-@export var networkManager:Node
+
+signal gameStart
+signal cleanup
+signal msg(text:String)
+signal gameEnd
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	pass # Replace with function body.
@@ -94,32 +125,40 @@ func _process(delta):
 	pass
 
 func _on_host_pressed():
-	networkManager.cleanupNetwork()
+	cleanup.emit()
 	var peer := ENetMultiplayerPeer.new()
 	var a = peer.create_server(netPort)
 
-	networkManager.mpInterface.set_multiplayer_peer(peer)
-	networkManager.createMsg(\"hosting!\")
+	get_tree().get_multiplayer().multiplayer_peer = peer
+	msg.emit(\"hosting!\")
+	
 	%state.text = \"HOSTING\"
-	networkManager.gameStart.emit()
+	gameStart.emit()
 
 func _on_join_pressed():
-	networkManager.cleanupNetwork()
+	cleanup.emit()
 	
 	var peer := ENetMultiplayerPeer.new()
 	var a = peer.create_client(\"localhost\",netPort)
-	networkManager.mpInterface.set_multiplayer_peer(peer)
-	networkManager.createMsg(\"joining!\")
+	get_tree().get_multiplayer().multiplayer_peer = peer
+	msg.emit(\"joining!\")
+	
 	%state.text = \"JOINING!\"
 	
 
 func _on_quit_pressed():
-	networkManager.cleanupNetwork()
+	cleanup.emit()
 	%state.text = \"QUITED!\"
 "
 
 [sub_resource type="GDScript" id="GDScript_xrfl3"]
 script/source = "extends VBoxContainer
+
+signal gameStart
+signal cleanup
+signal msg(text:String)
+signal gameEnd
+
 
 @export var useSteam =false
 @export var networkManager:Node
@@ -127,6 +166,9 @@ script/source = "extends VBoxContainer
 var peer :SteamMultiplayerPeer
 
 func _ready():
+	if useSteam == false:
+		queue_free()
+		return
 	var a = Steam.steamInit()
 	assert(a.status == 1,\"steam did not init properly. msg:\" + a.verbal )
 	
@@ -139,6 +181,7 @@ func join_requested(lobby_id, steam_id):
 	setUpNewPeer()
 	peer.connect_lobby(lobby_id)
 	get_tree().get_multiplayer().set_multiplayer_peer(peer)
+#	gameStart.emit()
 
 func _process(delta):
 	Steam.run_callbacks() 
@@ -151,6 +194,7 @@ func _on_host_pressed():
 	peer.create_lobby(SteamMultiplayerPeer.FRIENDS_ONLY,99)
 	
 	get_tree().get_multiplayer().set_multiplayer_peer(peer)
+	gameStart.emit()
 	pass # Replace with function body.
 
 
@@ -299,29 +343,30 @@ horizontal_alignment = 1
 [node name="HBoxContainer" type="HBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
+script = SubResource("GDScript_yp1g5")
 
-[node name="ENetPanel" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer" node_paths=PackedStringArray("networkManager")]
+[node name="enet" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 alignment = 1
 script = SubResource("GDScript_v4g54")
-networkManager = NodePath("../../../../..")
 
-[node name="EnetTitle" type="Label" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/ENetPanel"]
+[node name="EnetTitle" type="Label" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
 layout_mode = 2
 text = "ENet"
 
-[node name="Host" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/ENetPanel"]
+[node name="Host" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
 layout_mode = 2
 focus_mode = 0
 text = "Host"
 
-[node name="Join" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/ENetPanel"]
+[node name="Join" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
 layout_mode = 2
 focus_mode = 0
 text = "Join
 "
 
-[node name="Quit" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/ENetPanel"]
+[node name="Quit" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
 layout_mode = 2
 focus_mode = 0
 text = "Quit"
@@ -341,22 +386,24 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="SteamPanel" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer" node_paths=PackedStringArray("networkManager")]
+[node name="steam" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer" node_paths=PackedStringArray("networkManager")]
+unique_name_in_owner = true
 layout_mode = 2
 alignment = 1
 script = SubResource("GDScript_xrfl3")
+useSteam = true
 networkManager = NodePath("../../../../..")
 
-[node name="SteamTitle" type="Label" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/SteamPanel"]
+[node name="SteamTitle" type="Label" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam"]
 layout_mode = 2
 text = "Steam"
 
-[node name="Host" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/SteamPanel"]
+[node name="Host" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam"]
 layout_mode = 2
 focus_mode = 0
 text = "Host"
 
-[node name="Quit" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/SteamPanel"]
+[node name="Quit" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam"]
 layout_mode = 2
 focus_mode = 0
 text = "Quit"
@@ -400,8 +447,14 @@ spawn_path = NodePath("..")
 [connection signal="gameStart" from="." to="dumbGame" method="_on_node_game_start"]
 [connection signal="playerConnected" from="." to="dumbGame" method="_on_node_player_connected"]
 [connection signal="playerDisconnected" from="." to="dumbGame" method="_on_node_player_disconnected"]
-[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/ENetPanel/Host" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/ENetPanel" method="_on_host_pressed"]
-[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/ENetPanel/Join" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/ENetPanel" method="_on_join_pressed"]
-[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/ENetPanel/Quit" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/ENetPanel" method="_on_quit_pressed"]
-[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/SteamPanel/Host" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/SteamPanel" method="_on_host_pressed"]
+[connection signal="cleanup" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="cleanupNetwork"]
+[connection signal="gameStart" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="startGame"]
+[connection signal="msg" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="createMsg"]
+[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/Host" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_host_pressed"]
+[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/Join" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_join_pressed"]
+[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/Quit" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_quit_pressed"]
+[connection signal="cleanup" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" to="." method="cleanupNetwork"]
+[connection signal="gameStart" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" to="." method="startGame"]
+[connection signal="msg" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" to="." method="createMsg"]
+[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam/Host" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" method="_on_host_pressed"]
 [connection signal="pressed" from="pingPanel/Button" to="pingPanel" method="_on_button_pressed"]

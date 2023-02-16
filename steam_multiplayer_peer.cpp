@@ -12,8 +12,7 @@ SteamMultiplayerPeer::SteamMultiplayerPeer() :
 		callbackLobbyMessage(this, &SteamMultiplayerPeer::lobby_message),
 		callbackLobbyChatUpdate(this, &SteamMultiplayerPeer::lobby_chat_update),
 		callbackNetworkMessagesSessionRequest(this, &SteamMultiplayerPeer::network_messages_session_request),
-		callbackLobbyJoined(this, &SteamMultiplayerPeer::lobby_joined)
-{
+		callbackLobbyJoined(this, &SteamMultiplayerPeer::lobby_joined) {
 	// connection_status = ConnectionStatus::CONNECTION_DISCONNECTED;
 }
 
@@ -74,9 +73,56 @@ Error SteamMultiplayerPeer::get_packet(const uint8_t **r_buffer, int &r_buffer_s
 	return OK;
 }
 
+int SteamMultiplayerPeer::_get_steam_transfer_flag() {
+	switch (get_transfer_mode()) {
+		case TransferMode::TRANSFER_MODE_RELIABLE:
+			if (noNagle) {
+				return k_nSteamNetworkingSend_ReliableNoNagle;
+			} else {
+				return k_nSteamNetworkingSend_Reliable;
+			}
+			break;
+		case TransferMode::TRANSFER_MODE_UNRELIABLE:
+		case TransferMode::TRANSFER_MODE_UNRELIABLE_ORDERED:
+			if (noDelay) {
+				return k_nSteamNetworkingSend_UnreliableNoDelay;
+			} else if (noNagle) {
+				return k_nSteamNetworkingSend_UnreliableNoNagle;
+			} else {
+				return k_nSteamNetworkingSend_Unreliable;
+			}
+			break;
+	}
+	return -1;
+}
+
 Error SteamMultiplayerPeer::put_packet(const uint8_t *p_buffer, int p_buffer_size) {
-	ERR_PRINT("ERROR:: SteamMultiplayerPeer::put_packet not yet implemented");
-	return Error::ERR_PRINTER_ON_FIRE;
+	int steamNetworkFlag = _get_steam_transfer_flag();
+
+	if (target_peer == 0) { //send to ALL
+		EResult returnValue = k_EResultOK;
+		for (KeyValue<int, Ref<ConnectionData>> &E : connections) {
+			auto errorCode = SteamNetworkingMessages()->SendMessageToUser(E.value->networkIdentity, p_buffer, p_buffer_size, steamNetworkFlag, MAIN_COM_CHANNEL);
+			if (errorCode != k_EResultOK) {
+				returnValue = errorCode;
+			}
+		}
+		if (returnValue == k_EResultOK) {
+			return Error::OK;
+		} else {
+			return Error(returnValue);
+		}
+	} else {
+		auto errorCode = -1;
+		if (connections.has(target_peer)) {
+			errorCode = SteamNetworkingMessages()->SendMessageToUser(connections[target_peer]->networkIdentity, p_buffer, p_buffer_size, steamNetworkFlag, MAIN_COM_CHANNEL);
+		}
+		if (errorCode == k_EResultOK) {
+			return Error::OK;
+		}
+		return Error(errorCode);
+	}
+	return Error::ERR_DOES_NOT_EXIST;
 }
 
 int SteamMultiplayerPeer::get_max_packet_size() const {
@@ -85,7 +131,7 @@ int SteamMultiplayerPeer::get_max_packet_size() const {
 
 void SteamMultiplayerPeer::set_target_peer(int p_peer_id) {
 	target_peer = p_peer_id;
-}
+};
 
 int SteamMultiplayerPeer::get_packet_peer() const {
 	ERR_FAIL_COND_V_MSG(!_is_active(), 1, "The multiplayer instance isn't currently active.");
@@ -162,33 +208,25 @@ bool SteamMultiplayerPeer::add_connection_peer(const CSteamID &steamId) {
 	if (steamId == SteamUser()->GetSteamID()) {
 		return false;
 	} else {
-		int godotId = steamId == lobby_owner ? 1 : steamId.GetAccountID(); //maybe this account ID needs to be something else?
-		auto connection = connections.push_back(ConnectionData(steamId, godotId))->get();
-		emit_signal("peer_connected", godotId);
-		SteamNetworkingMessages()->AcceptSessionWithUser(connection.networkIdentity);
+		Ref<ConnectionData> connection = Ref<ConnectionData>(memnew(ConnectionData(steamId)));
+		connections[steamId.GetAccountID()] = connection;
+		emit_signal(SNAME("peer_connected"), steamId == lobby_owner ? 1 : steamId.GetAccountID());
+		SteamNetworkingMessages()->AcceptSessionWithUser(connection->networkIdentity);
 		return true;
 	}
 }
 
 void SteamMultiplayerPeer::removed_connection_peer(const CSteamID &steamId) {
-	auto a = connections.front();
-	while (a) {
-		auto element = a->get();
-		if (element.steamId == steamId) {
-			SteamNetworkingMessages()->CloseSessionWithUser(element.networkIdentity);
-			emit_signal("peer_disconnected", element.godotId);
-			connections.erase(a);
-			return;
-		} else {
-			a = a->next();
-		}
-	}
+	connections.erase(steamId.GetAccountID());
+	emit_signal("peer_disconnected", steamId.GetAccountID());
 }
 
 Error SteamMultiplayerPeer::create_lobby(LOBBY_TYPE lobby_type, int max_players) {
 	if (SteamMatchmaking() != NULL) {
 		SteamAPICall_t api_call = SteamMatchmaking()->CreateLobby((ELobbyType)lobby_type, max_players);
 		callResultCreateLobby.Set(api_call, this, &SteamMultiplayerPeer::lobby_created);
+		unique_id = 1;
+		lobbyState = LOBBY_STATE::HOST_PENDING;
 		return OK;
 	} else {
 		ERR_PRINT("`SteamMatchmaking()` is null.");
@@ -202,12 +240,11 @@ void SteamMultiplayerPeer::lobby_created(LobbyCreated_t *lobby_data, bool io_fai
 		ERR_FAIL_MSG("lobby_created failed? idk wtf is happening");
 		// steamworksError("lobby_created");
 	} else {
-		unique_id = 1;
 		lobbyState = LOBBY_STATE::HOSTING;
 		int connect = lobby_data->m_eResult;
 		lobby_id = lobby_data->m_ulSteamIDLobby;
 		uint64 lobby = lobby_id.ConvertToUint64();
-		emit_signal("lobby_created", connect, lobby);
+		emit_signal(SNAME("lobby_created"), connect, lobby); //why do I do this?
 	}
 }
 
@@ -280,19 +317,63 @@ void SteamMultiplayerPeer::network_messages_session_request(SteamNetworkingMessa
 	ERR_PRINT(String("CONNECTION ATTEMPTED BY PLAYER NOT IN LOBBY!:") + String::num_uint64(requester.GetAccountID()));
 };
 
-void SteamMultiplayerPeer::lobby_joined(LobbyEnter_t* lobbyData){
-	if(lobbyData->m_ulSteamIDLobby != this->lobby_id.ConvertToUint64()){
+void SteamMultiplayerPeer::lobby_joined(LobbyEnter_t *lobbyData) {
+	if (lobbyData->m_ulSteamIDLobby != this->lobby_id.ConvertToUint64()) {
+		ERR_PRINT("joined a lobby that isn't THIS lobby? this is probably an error? weird");
 		return;
 	}
 	lobbyState = LOBBY_STATE::CLIENT;
 
-
-
-	// CSteamID steam_lobby_id = lobbyData->m_ulSteamIDLobby;
-	// uint64_t lobby_id = steam_lobby_id.ConvertToUint64();
-	// uint32_t permissions = lobbyData->m_rgfChatPermissions;
-	// bool locked = lobbyData->m_bLocked;
-	// uint32_t response = lobbyData->m_EChatRoomEnterResponse;
-	// emit_signal("lobby_joined", lobby_id, permissions, locked, response);
-	//TODO 
+	if (lobbyData->m_EChatRoomEnterResponse == k_EChatRoomEnterResponseSuccess) {
+		lobby_owner = SteamMatchmaking()->GetLobbyOwner(lobby_id);
+		// connectionStatus = ConnectionStatus::CONNECTION_CONNECTED;
+		if (unique_id == 1) {
+			//don't do stuff if you're already the host
+		} else {
+			emit_signal(SNAME("connection_succeeded"));
+		}
+	} else {
+		String output = "";
+		switch (lobbyData->m_EChatRoomEnterResponse) {
+			// k_EChatRoomEnterResponseSuccess: 			output = "k_EChatRoomEnterResponseSuccess"; break;
+			case k_EChatRoomEnterResponseDoesntExist:
+				output = "Doesn't Exist";
+				break;
+			case k_EChatRoomEnterResponseNotAllowed:
+				output = "Not Allowed";
+				break;
+			case k_EChatRoomEnterResponseFull:
+				output = "Full";
+				break;
+			case k_EChatRoomEnterResponseError:
+				output = "Error";
+				break;
+			case k_EChatRoomEnterResponseBanned:
+				output = "Banned";
+				break;
+			case k_EChatRoomEnterResponseLimited:
+				output = "Limited";
+				break;
+			case k_EChatRoomEnterResponseClanDisabled:
+				output = "Clan Disabled";
+				break;
+			case k_EChatRoomEnterResponseCommunityBan:
+				output = "Community Ban";
+				break;
+			case k_EChatRoomEnterResponseMemberBlockedYou:
+				output = "Member Blocked You";
+				break;
+			case k_EChatRoomEnterResponseYouBlockedMember:
+				output = "You Blocked Member";
+				break;
+			case k_EChatRoomEnterResponseRatelimitExceeded:
+				output = "Ratelimit Exceeded";
+				break;
+		};
+		if (output.length() != 0) {
+			ERR_PRINT("Joined lobby failed!" + output);
+			emit_signal(SNAME("connection_failed"));
+			return;
+		}
 	}
+}

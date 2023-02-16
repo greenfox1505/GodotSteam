@@ -87,6 +87,9 @@ public:
 		CLIENT
 	} lobbyState = LOBBY_STATE::NOT_CONNECTED;
 
+	bool noNagle = false;
+	bool noDelay = false;
+
 	int32_t target_peer = -1;
 	int32_t unique_id = -1;
 	// ConnectionStatus connection_status = ConnectionStatus::CONNECTION_DISCONNECTED;
@@ -106,38 +109,48 @@ public:
 
 	_FORCE_INLINE_ bool _is_active() const { return lobbyState != LOBBY_STATE::NOT_CONNECTED; }
 
-	struct ConnectionData {
+	class ConnectionData : public RefCounted {
+		GDCLASS(ConnectionData, RefCounted);
+
+	public:
 		CSteamID steamId;
-		uint32_t godotId;
 		SteamNetworkingIdentity networkIdentity;
-		ConnectionData(const CSteamID &steamId, const uint32_t &godotId) {
+		ConnectionData(const CSteamID &steamId) {
 			this->steamId = steamId;
-			this->godotId = godotId;
 			networkIdentity = SteamNetworkingIdentity();
 			networkIdentity.SetSteamID(steamId);
 		}
 		ConnectionData(){};
 		bool operator==(const ConnectionData &data) {
-			return godotId = data.godotId;
+			return steamId == data.steamId;
 		}
-		// bool operator==(const ConnectionData& data){
-		// 	return godotId = data.godotId;
-		// }
 	};
 
-	List<ConnectionData> connections; //list is a linked list and a bad data structure for this. todo fix
-	const ConnectionData *activeConnection;
+	HashMap<int, Ref<ConnectionData>> connections;
+	// List<ConnectionData> connections; //list is a linked list and a bad data structure for this. todo fix
 
 	bool add_connection_peer(const CSteamID &steamId);
 	void removed_connection_peer(const CSteamID &steamId);
 
 	Error create_lobby(LOBBY_TYPE lobbyType, int max_players);
-	Error join_lobby(uint64 lobbyId); //todo function signature here!
+	Error join_lobby(uint64 lobbyId);
 
 	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_message, LobbyChatMsg_t, callbackLobbyMessage);
 	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_chat_update, LobbyChatUpdate_t, callbackLobbyChatUpdate);
 	STEAM_CALLBACK(SteamMultiplayerPeer, network_messages_session_request, SteamNetworkingMessagesSessionRequest_t, callbackNetworkMessagesSessionRequest);
 	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_joined, LobbyEnter_t, callbackLobbyJoined);
+
+	int _get_steam_transfer_flag();
+
+	Ref<ConnectionData> getConnectionByAccountId(uint32 accountId) {
+		return connections[accountId];
+		// for (int i = 0; i < connections.size(); i++) { //this is super stupid. look at comment on COnnectionData defintion
+		// 	if (connections[i].steamId.GetAccountID() == accountId) {
+		// 		return &connections[i];
+		// 	}
+		// }
+		// return nullptr;
+	}
 };
 
 #endif
