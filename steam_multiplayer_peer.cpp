@@ -12,7 +12,7 @@ SteamMultiplayerPeer::SteamMultiplayerPeer() :
 		callbackLobbyMessage(this, &SteamMultiplayerPeer::lobby_message),
 		callbackLobbyChatUpdate(this, &SteamMultiplayerPeer::lobby_chat_update),
 		callbackNetworkMessagesSessionRequest(this, &SteamMultiplayerPeer::network_messages_session_request) {
-	connection_status = ConnectionStatus::CONNECTION_DISCONNECTED;
+	// connection_status = ConnectionStatus::CONNECTION_DISCONNECTED;
 }
 
 uint64 SteamMultiplayerPeer::get_lobby_id() {
@@ -37,7 +37,7 @@ void SteamMultiplayerPeer::_bind_methods() {
 
 	BIND_ENUM_CONSTANT(DISCONNECTED);
 	BIND_ENUM_CONSTANT(HOST_PENDING);
-	BIND_ENUM_CONSTANT(HOST);
+	BIND_ENUM_CONSTANT(HOSTING);
 	BIND_ENUM_CONSTANT(CLIENT_PENDING);
 	BIND_ENUM_CONSTANT(CLIENT);
 
@@ -147,7 +147,13 @@ int SteamMultiplayerPeer::get_unique_id() const {
 }
 
 SteamMultiplayerPeer::ConnectionStatus SteamMultiplayerPeer::get_connection_status() const {
-	return connection_status;
+	if (lobbyState == LOBBY_STATE::NOT_CONNECTED) {
+		return ConnectionStatus::CONNECTION_DISCONNECTED;
+	} else if (lobbyState == LOBBY_STATE::CLIENT || lobbyState == LOBBY_STATE::HOSTING) {
+		return ConnectionStatus::CONNECTION_CONNECTED;
+	} else {
+		return ConnectionStatus::CONNECTION_CONNECTING;
+	}
 }
 
 bool SteamMultiplayerPeer::add_connection_peer(const CSteamID &steamId) {
@@ -179,7 +185,6 @@ void SteamMultiplayerPeer::removed_connection_peer(const CSteamID &steamId) {
 
 Error SteamMultiplayerPeer::create_lobby(LOBBY_TYPE lobby_type, int max_players) {
 	if (SteamMatchmaking() != NULL) {
-		connection_status = CONNECTION_CONNECTING;
 		SteamAPICall_t api_call = SteamMatchmaking()->CreateLobby((ELobbyType)lobby_type, max_players);
 		callResultCreateLobby.Set(api_call, this, &SteamMultiplayerPeer::lobby_created);
 		return OK;
@@ -191,9 +196,12 @@ Error SteamMultiplayerPeer::create_lobby(LOBBY_TYPE lobby_type, int max_players)
 
 void SteamMultiplayerPeer::lobby_created(LobbyCreated_t *lobby_data, bool io_failure) {
 	if (io_failure) {
+		lobbyState = LOBBY_STATE::NOT_CONNECTED;
 		ERR_FAIL_MSG("lobby_created failed? idk wtf is happening");
 		// steamworksError("lobby_created");
 	} else {
+		unique_id = 1;
+		lobbyState = LOBBY_STATE::HOSTING;
 		int connect = lobby_data->m_eResult;
 		lobby_id = lobby_data->m_ulSteamIDLobby;
 		uint64 lobby = lobby_id.ConvertToUint64();
@@ -203,7 +211,7 @@ void SteamMultiplayerPeer::lobby_created(LobbyCreated_t *lobby_data, bool io_fai
 
 Error SteamMultiplayerPeer::connect_lobby(uint64 lobbyId) {
 	if (SteamMatchmaking() != NULL) {
-		connection_status = CONNECTION_CONNECTING;
+		lobbyState = LOBBY_STATE::CLIENT;
 		SteamMatchmaking()->JoinLobby(CSteamID(lobbyId));
 	}
 	return OK;

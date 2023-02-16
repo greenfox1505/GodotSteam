@@ -82,14 +82,14 @@ public:
 	enum LOBBY_STATE {
 		NOT_CONNECTED,
 		HOST_PENDING,
-		HOST,
+		HOSTING,
 		CLIENT_PENDING,
 		CLIENT
 	} lobbyState = LOBBY_STATE::NOT_CONNECTED;
 
 	int32_t target_peer = -1;
 	int32_t unique_id = -1;
-	ConnectionStatus connection_status = ConnectionStatus::CONNECTION_DISCONNECTED;
+	// ConnectionStatus connection_status = ConnectionStatus::CONNECTION_DISCONNECTED;
 	TransferMode transferMode = TransferMode::TRANSFER_MODE_RELIABLE;
 
 	struct Packet {
