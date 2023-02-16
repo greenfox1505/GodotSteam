@@ -122,23 +122,32 @@ func _on_quit_pressed():
 script/source = "extends VBoxContainer
 
 @export var useSteam =false
+@export var networkManager:Node
 
-var peer := SteamMultiplayerPeer.new()
-# Called when the node enters the scene tree for the first time.
+var peer :SteamMultiplayerPeer
+
 func _ready():
 	var a = Steam.steamInit()
 	assert(a.status == 1,\"steam did not init properly. msg:\" + a.verbal )
 	
-	peer.lobby_created.connect(lobby_created)
+	Steam.join_requested.connect(join_requested)
+
+
+func join_requested(lobby_id, steam_id):
+	networkManager.createMsg(\"join_requested!\")
 	
-# Called every frame. 'delta' is the elapsed time since the previous frame.
+	setUpNewPeer()
+	peer.connect_lobby(lobby_id)
+	get_tree().get_multiplayer().set_multiplayer_peer(peer)
+
 func _process(delta):
-	Steam.run_callbacks() #this should migrate to a static global
+	Steam.run_callbacks() 
 	pass
 
 
 func _on_host_pressed():
-	
+	setUpNewPeer()
+	networkManager.createMsg(\"hosting!\")
 	peer.create_lobby(SteamMultiplayerPeer.FRIENDS_ONLY,99)
 	
 	get_tree().get_multiplayer().set_multiplayer_peer(peer)
@@ -151,6 +160,12 @@ func lobby_created(m_eResult,lobbyId):
 	print(\"lobbyID: %s\" %lobbyId)
 	
 	pass
+
+
+func setUpNewPeer():
+	peer = SteamMultiplayerPeer.new()
+	peer.lobby_created.connect(lobby_created)
+	
 "
 
 [sub_resource type="GDScript" id="GDScript_kw7au"]
@@ -326,10 +341,11 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="SteamPanel" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="SteamPanel" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer" node_paths=PackedStringArray("networkManager")]
 layout_mode = 2
 alignment = 1
 script = SubResource("GDScript_xrfl3")
+networkManager = NodePath("../../../../..")
 
 [node name="SteamTitle" type="Label" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/SteamPanel"]
 layout_mode = 2

@@ -132,11 +132,12 @@ public:
 	void removed_connection_peer(const CSteamID &steamId);
 
 	Error create_lobby(LOBBY_TYPE lobbyType, int max_players);
-	Error connect_lobby(uint64 lobbyId); //todo function signature here!
+	Error join_lobby(uint64 lobbyId); //todo function signature here!
 
 	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_message, LobbyChatMsg_t, callbackLobbyMessage);
 	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_chat_update, LobbyChatUpdate_t, callbackLobbyChatUpdate);
 	STEAM_CALLBACK(SteamMultiplayerPeer, network_messages_session_request, SteamNetworkingMessagesSessionRequest_t, callbackNetworkMessagesSessionRequest);
+	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_joined, LobbyEnter_t, callbackLobbyJoined);
 };
 
 #endif

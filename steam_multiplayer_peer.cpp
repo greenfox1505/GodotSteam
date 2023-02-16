@@ -11,7 +11,9 @@ VARIANT_ENUM_CAST(SteamMultiplayerPeer::LOBBY_STATE);
 SteamMultiplayerPeer::SteamMultiplayerPeer() :
 		callbackLobbyMessage(this, &SteamMultiplayerPeer::lobby_message),
 		callbackLobbyChatUpdate(this, &SteamMultiplayerPeer::lobby_chat_update),
-		callbackNetworkMessagesSessionRequest(this, &SteamMultiplayerPeer::network_messages_session_request) {
+		callbackNetworkMessagesSessionRequest(this, &SteamMultiplayerPeer::network_messages_session_request),
+		callbackLobbyJoined(this, &SteamMultiplayerPeer::lobby_joined)
+{
 	// connection_status = ConnectionStatus::CONNECTION_DISCONNECTED;
 }
 
@@ -21,7 +23,7 @@ uint64 SteamMultiplayerPeer::get_lobby_id() {
 
 void SteamMultiplayerPeer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("create_lobby", "lobby_type", "max_players"), &SteamMultiplayerPeer::create_lobby, DEFVAL(32));
-	ClassDB::bind_method(D_METHOD("connect_lobby", "lobby_id"), &SteamMultiplayerPeer::connect_lobby);
+	ClassDB::bind_method(D_METHOD("connect_lobby", "lobby_id"), &SteamMultiplayerPeer::join_lobby);
 
 	BIND_ENUM_CONSTANT(PRIVATE);
 	BIND_ENUM_CONSTANT(FRIENDS_ONLY);
@@ -209,9 +211,10 @@ void SteamMultiplayerPeer::lobby_created(LobbyCreated_t *lobby_data, bool io_fai
 	}
 }
 
-Error SteamMultiplayerPeer::connect_lobby(uint64 lobbyId) {
+Error SteamMultiplayerPeer::join_lobby(uint64 lobbyId) {
 	if (SteamMatchmaking() != NULL) {
-		lobbyState = LOBBY_STATE::CLIENT;
+		lobbyState = LOBBY_STATE::CLIENT_PENDING;
+		this->lobby_id = lobbyId;
 		SteamMatchmaking()->JoinLobby(CSteamID(lobbyId));
 	}
 	return OK;
@@ -276,3 +279,20 @@ void SteamMultiplayerPeer::network_messages_session_request(SteamNetworkingMessa
 	}
 	ERR_PRINT(String("CONNECTION ATTEMPTED BY PLAYER NOT IN LOBBY!:") + String::num_uint64(requester.GetAccountID()));
 };
+
+void SteamMultiplayerPeer::lobby_joined(LobbyEnter_t* lobbyData){
+	if(lobbyData->m_ulSteamIDLobby != this->lobby_id.ConvertToUint64()){
+		return;
+	}
+	lobbyState = LOBBY_STATE::CLIENT;
+
+
+
+	// CSteamID steam_lobby_id = lobbyData->m_ulSteamIDLobby;
+	// uint64_t lobby_id = steam_lobby_id.ConvertToUint64();
+	// uint32_t permissions = lobbyData->m_rgfChatPermissions;
+	// bool locked = lobbyData->m_bLocked;
+	// uint32_t response = lobbyData->m_EChatRoomEnterResponse;
+	// emit_signal("lobby_joined", lobby_id, permissions, locked, response);
+	//TODO 
+	}
