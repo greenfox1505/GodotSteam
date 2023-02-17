@@ -30,6 +30,7 @@ public:
 	GDCLASS(SteamMultiplayerPeer, MultiplayerPeer);
 
 public:
+	int steamNetworkFlag;
 	// Matchmaking call results ///////////// stolen
 	CCallResult<SteamMultiplayerPeer, LobbyCreated_t> callResultCreateLobby;
 	void lobby_created(LobbyCreated_t *call_data, bool io_failure);
@@ -49,6 +50,9 @@ public:
 	virtual Error get_packet(const uint8_t **r_buffer, int &r_buffer_size) override;
 	virtual Error put_packet(const uint8_t *p_buffer, int p_buffer_size) override;
 	virtual int get_max_packet_size() const override;
+	virtual bool is_server_relay_supported() const override;
+
+
 
 	virtual void set_target_peer(int p_peer_id) override;
 	virtual int get_packet_peer() const override;
@@ -100,11 +104,10 @@ public:
 		uint32_t size;
 		CSteamID sender;
 
-		int from = 0;
 		int channel = 0;
 		TransferMode transfer_mode = TRANSFER_MODE_RELIABLE;
 	};
-	Packet *current_packet;
+	Packet *current_packet = new Packet; //this packet gets deleted at the first get_packet request
 	List<Packet *> incoming_packets;
 
 	_FORCE_INLINE_ bool _is_active() const { return lobbyState != LOBBY_STATE::NOT_CONNECTED; }
@@ -142,15 +145,7 @@ public:
 
 	int _get_steam_transfer_flag();
 
-	Ref<ConnectionData> getConnectionByAccountId(uint32 accountId) {
-		return connections[accountId];
-		// for (int i = 0; i < connections.size(); i++) { //this is super stupid. look at comment on COnnectionData defintion
-		// 	if (connections[i].steamId.GetAccountID() == accountId) {
-		// 		return &connections[i];
-		// 	}
-		// }
-		// return nullptr;
-	}
+	
 };
 
 #endif

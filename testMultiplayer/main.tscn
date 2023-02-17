@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://d4cyor045brlr"]
+[gd_scene load_steps=13 format=3 uid="uid://d4cyor045brlr"]
 
 [ext_resource type="Texture2D" uid="uid://c056bh175wcr" path="res://icon.svg" id="1_44y2y"]
 [ext_resource type="PackedScene" uid="uid://bx6j1445ndl7x" path="res://mp_character.tscn" id="2_tthkw"]
@@ -81,6 +81,17 @@ func server_disconnected():
 func startGame():
 	gameStart.emit()
 #	gameStart.emit()
+"
+
+[sub_resource type="GDScript" id="GDScript_lehj8"]
+script/source = "extends Label
+
+
+func _process(delta):
+	text = \"\"
+	var a = get_tree().get_multiplayer().get_peers()
+	for i in a:
+		text += \"%d,\" % i
 "
 
 [sub_resource type="GDScript" id="GDScript_yp1g5"]
@@ -339,6 +350,10 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Not Running"
 horizontal_alignment = 1
+
+[node name="Label" type="Label" parent="connectPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+script = SubResource("GDScript_lehj8")
 
 [node name="HBoxContainer" type="HBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
