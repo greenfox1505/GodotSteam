@@ -121,8 +121,6 @@ script/source = "extends HBoxContainer
 [sub_resource type="GDScript" id="GDScript_v4g54"]
 script/source = "extends VBoxContainer
 
-@export var netPort = 8888
-
 
 signal gameStart
 signal cleanup
@@ -140,28 +138,46 @@ func _process(delta):
 func _on_host_pressed():
 	cleanup.emit()
 	var peer := ENetMultiplayerPeer.new()
-	var a = peer.create_server(netPort)
+	var a = peer.create_server(%portNumber.value)
 
 	get_tree().get_multiplayer().multiplayer_peer = peer
 	msg.emit(\"hosting!\")
 	
 	%state.text = \"HOSTING\"
 	gameStart.emit()
-
+	blurAll()
+	
 func _on_join_pressed():
 	cleanup.emit()
 	
 	var peer := ENetMultiplayerPeer.new()
-	var a = peer.create_client(\"localhost\",netPort)
+	var a = peer.create_client(%ipAddress.text,%portNumber.value)
 	get_tree().get_multiplayer().multiplayer_peer = peer
 	msg.emit(\"joining!\")
-	
+
 	%state.text = \"JOINING!\"
-	
+	blurAll()
 
 func _on_quit_pressed():
+	get_tree().get_multiplayer().multiplayer_peer.close()
 	cleanup.emit()
 	%state.text = \"QUITED!\"
+
+
+func blurAll():
+	$HBoxContainer/Host.release_focus()
+	$HBoxContainer/Join.release_focus()
+	%ipAddress.release_focus()
+	%portNumber.release_focus()
+	
+	
+	
+	
+	
+
+
+func _on_ip_address_text_submitted(new_text):
+	_on_join_pressed()
 "
 
 [sub_resource type="GDScript" id="GDScript_xrfl3"]
@@ -372,16 +388,34 @@ script = SubResource("GDScript_v4g54")
 layout_mode = 2
 text = "ENet"
 
-[node name="Host" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
+[node name="HBoxContainer" type="HBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
 layout_mode = 2
+
+[node name="Host" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
 text = "Host"
 
-[node name="Join" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
+[node name="Join" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/HBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
 text = "Join
 "
+
+[node name="ipAddress" type="LineEdit" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+text = "localhost"
+placeholder_text = "IP"
+
+[node name="portNumber" type="SpinBox" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 65535.0
+value = 8888.0
 
 [node name="Quit" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
 layout_mode = 2
@@ -421,6 +455,7 @@ focus_mode = 0
 text = "Host"
 
 [node name="Quit" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam"]
+visible = false
 layout_mode = 2
 focus_mode = 0
 text = "Quit"
@@ -467,8 +502,9 @@ spawn_path = NodePath("..")
 [connection signal="cleanup" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="cleanupNetwork"]
 [connection signal="gameStart" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="startGame"]
 [connection signal="msg" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="createMsg"]
-[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/Host" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_host_pressed"]
-[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/Join" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_join_pressed"]
+[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/HBoxContainer/Host" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_host_pressed"]
+[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/HBoxContainer/Join" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_join_pressed"]
+[connection signal="text_submitted" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/ipAddress" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_ip_address_text_submitted"]
 [connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/Quit" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_quit_pressed"]
 [connection signal="cleanup" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" to="." method="cleanupNetwork"]
 [connection signal="gameStart" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" to="." method="startGame"]
