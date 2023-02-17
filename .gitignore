@@ -24,3 +24,6 @@ doxygen/
 
 # Visual Studio adds
 *.obj
+
+
+public/*

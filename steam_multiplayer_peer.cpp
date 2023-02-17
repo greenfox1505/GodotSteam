@@ -211,7 +211,7 @@ bool SteamMultiplayerPeer::add_connection_peer(const CSteamID &steamId) {
 		Ref<ConnectionData> connection = Ref<ConnectionData>(memnew(ConnectionData(steamId)));
 		connections[steamId.GetAccountID()] = connection;
 		emit_signal(SNAME("peer_connected"), steamId == lobby_owner ? 1 : steamId.GetAccountID());
-		SteamNetworkingMessages()->AcceptSessionWithUser(connection->networkIdentity);
+		bool returnValue = SteamNetworkingMessages()->AcceptSessionWithUser(connection->networkIdentity);
 		return true;
 	}
 }
