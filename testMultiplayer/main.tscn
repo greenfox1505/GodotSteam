@@ -88,7 +88,9 @@ script/source = "extends Label
 
 
 func _process(delta):
-	text = \"\"
+	var t = get_tree().get_multiplayer().get_unique_id()
+
+	text = \"current%d\" % t
 	var a = get_tree().get_multiplayer().get_peers()
 	for i in a:
 		text += \"%d,\" % i

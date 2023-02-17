@@ -31,6 +31,7 @@ bundle()
 copy()
 {
     cp ./public/testMultiplayer.7z //HYDRA/Projects
+    rm public/testMultiplayer.exe public/testMultiplayer.pck
 }
 
 godot()

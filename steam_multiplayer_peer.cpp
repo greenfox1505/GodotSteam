@@ -71,6 +71,7 @@ Error SteamMultiplayerPeer::get_packet(const uint8_t **r_buffer, int &r_buffer_s
 }
 
 int SteamMultiplayerPeer::_get_steam_transfer_flag() {
+	return k_nSteamNetworkingSend_ReliableNoNagle; //todo this helped fix some bugs with unreliable packets
 	switch (get_transfer_mode()) {
 		case TransferMode::TRANSFER_MODE_RELIABLE:
 			if (noNagle) {
@@ -94,6 +95,8 @@ int SteamMultiplayerPeer::_get_steam_transfer_flag() {
 }
 
 Error SteamMultiplayerPeer::put_packet(const uint8_t *p_buffer, int p_buffer_size) {
+	int steamNetworkFlag = _get_steam_transfer_flag();
+
 	if (target_peer == 0) { //send to ALL
 		EResult returnValue = k_EResultOK;
 		for (KeyValue<int, Ref<ConnectionData>> &E : connections) {
@@ -252,6 +255,7 @@ Error SteamMultiplayerPeer::join_lobby(uint64 lobbyId) {
 	if (SteamMatchmaking() != NULL) {
 		lobbyState = LOBBY_STATE::CLIENT_PENDING;
 		this->lobby_id = lobbyId;
+		unique_id = SteamUser()->GetSteamID().GetAccountID();
 		SteamMatchmaking()->JoinLobby(CSteamID(lobbyId));
 	}
 	return OK;

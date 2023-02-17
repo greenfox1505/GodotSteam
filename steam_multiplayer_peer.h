@@ -30,7 +30,6 @@ public:
 	GDCLASS(SteamMultiplayerPeer, MultiplayerPeer);
 
 public:
-	int steamNetworkFlag;
 	// Matchmaking call results ///////////// stolen
 	CCallResult<SteamMultiplayerPeer, LobbyCreated_t> callResultCreateLobby;
 	void lobby_created(LobbyCreated_t *call_data, bool io_failure);
@@ -91,8 +90,8 @@ public:
 		CLIENT
 	} lobbyState = LOBBY_STATE::NOT_CONNECTED;
 
-	bool noNagle = false;
-	bool noDelay = false;
+	bool noNagle = true;
+	bool noDelay = true;
 
 	int32_t target_peer = -1;
 	int32_t unique_id = -1;
