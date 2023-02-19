@@ -51,8 +51,6 @@ public:
 	virtual int get_max_packet_size() const override;
 	virtual bool is_server_relay_supported() const override;
 
-
-
 	virtual void set_target_peer(int p_peer_id) override;
 	virtual int get_packet_peer() const override;
 	virtual TransferMode get_packet_mode() const override;
@@ -65,6 +63,16 @@ public:
 	virtual ConnectionStatus get_connection_status() const override;
 
 	// all SteamGodot from here on down
+
+	enum CHANNEL_MANAGEMENT {
+		PING_CHANNEL,
+		SIZE
+	};
+
+	struct PingPayload {
+		int peer_id;
+		CSteamID steam_id;
+	};
 
 	enum LOBBY_TYPE {
 		PRIVATE = ELobbyType::k_ELobbyTypePrivate,
@@ -88,15 +96,15 @@ public:
 		HOSTING,
 		CLIENT_PENDING,
 		CLIENT
-	} lobbyState = LOBBY_STATE::NOT_CONNECTED;
+	} lobby_state = LOBBY_STATE::NOT_CONNECTED;
 
-	bool noNagle = true;
-	bool noDelay = true;
+	bool no_nagle = true;
+	bool no_delay = false;
 
 	int32_t target_peer = -1;
 	int32_t unique_id = -1;
 	// ConnectionStatus connection_status = ConnectionStatus::CONNECTION_DISCONNECTED;
-	TransferMode transferMode = TransferMode::TRANSFER_MODE_RELIABLE;
+	TransferMode transfer_mode = TransferMode::TRANSFER_MODE_RELIABLE;
 
 	struct Packet {
 		uint8_t data[MAX_STEAM_PACKET_SIZE];
@@ -109,15 +117,18 @@ public:
 	Packet *current_packet = new Packet; //this packet gets deleted at the first get_packet request
 	List<Packet *> incoming_packets;
 
-	_FORCE_INLINE_ bool _is_active() const { return lobbyState != LOBBY_STATE::NOT_CONNECTED; }
+	_FORCE_INLINE_ bool _is_active() const { return lobby_state != LOBBY_STATE::NOT_CONNECTED; }
 
 	class ConnectionData : public RefCounted {
 		GDCLASS(ConnectionData, RefCounted);
 
 	public:
+		int peer_id;
 		CSteamID steamId;
 		SteamNetworkingIdentity networkIdentity;
-		ConnectionData(const CSteamID &steamId) {
+
+		ConnectionData(CSteamID steamId, int peer_id) {
+			this->peer_id = peer_id;
 			this->steamId = steamId;
 			networkIdentity = SteamNetworkingIdentity();
 			networkIdentity.SetSteamID(steamId);
@@ -128,23 +139,26 @@ public:
 		}
 	};
 
-	HashMap<int, Ref<ConnectionData>> connections;
-	// List<ConnectionData> connections; //list is a linked list and a bad data structure for this. todo fix
+	HashMap<int, Ref<ConnectionData>> connections_by_peer_id;
+	List<CSteamID> pending_connections;
 
-	bool add_connection_peer(const CSteamID &steamId);
+	void SteamMultiplayerPeer::add_connection_peer(const CSteamID &steamId, int peer_id);
+	void add_pending_peer(const CSteamID &steamId);
 	void removed_connection_peer(const CSteamID &steamId);
 
 	Error create_lobby(LOBBY_TYPE lobbyType, int max_players);
 	Error join_lobby(uint64 lobbyId);
 
-	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_message, LobbyChatMsg_t, callbackLobbyMessage);
-	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_chat_update, LobbyChatUpdate_t, callbackLobbyChatUpdate);
-	STEAM_CALLBACK(SteamMultiplayerPeer, network_messages_session_request, SteamNetworkingMessagesSessionRequest_t, callbackNetworkMessagesSessionRequest);
-	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_joined, LobbyEnter_t, callbackLobbyJoined);
+	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_message_scb, LobbyChatMsg_t, callbackLobbyMessage);
+	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_chat_update_scb, LobbyChatUpdate_t, callbackLobbyChatUpdate);
+	STEAM_CALLBACK(SteamMultiplayerPeer, network_messages_session_request_scb, SteamNetworkingMessagesSessionRequest_t, callbackNetworkMessagesSessionRequest);
+	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_joined_scb, LobbyEnter_t, callbackLobbyJoined);
 
 	int _get_steam_transfer_flag();
 
-	
+	void process_message(const SteamNetworkingMessage_t *msg);
+	void process_ping(const SteamNetworkingMessage_t *msg);
+	// void poll_channel(int nLocalChannel, void (*func)(SteamNetworkingMessage_t));
 };
 
 #endif

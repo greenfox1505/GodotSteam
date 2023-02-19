@@ -1,7 +1,8 @@
-[gd_scene load_steps=13 format=3 uid="uid://d4cyor045brlr"]
+[gd_scene load_steps=14 format=3 uid="uid://d4cyor045brlr"]
 
 [ext_resource type="Texture2D" uid="uid://c056bh175wcr" path="res://icon.svg" id="1_44y2y"]
 [ext_resource type="PackedScene" uid="uid://bx6j1445ndl7x" path="res://mp_character.tscn" id="2_tthkw"]
+[ext_resource type="Script" path="res://versionLabel.gd" id="3_lkgk7"]
 
 [sub_resource type="GDScript" id="GDScript_xoiub"]
 script/source = "extends Node
@@ -35,10 +36,12 @@ func _ready():
 
 
 func cleanupNetwork():
-	if peer == null:
+	var p = get_tree().get_multiplayer().multiplayer_peer
+	if p == null:
 		return
-	peer.close()
-	peer = null
+	p.close()
+	get_tree().get_multiplayer().multiplayer_peer = null
+	gameEnd.emit()
 
 
 func createMsg(msg:String):
@@ -77,7 +80,9 @@ func server_disconnected():
 	%state.text = \"DISCONNECTED!\"
 	gameEnd.emit()
 
-
+func endGame():
+	gameEnd.emit()
+	
 func startGame():
 	gameStart.emit()
 #	gameStart.emit()
@@ -169,9 +174,6 @@ func blurAll():
 	$HBoxContainer/Join.release_focus()
 	%ipAddress.release_focus()
 	%portNumber.release_focus()
-	
-	
-	
 	
 	
 
@@ -341,6 +343,14 @@ func _on_node_player_disconnected(id):
 	if is_multiplayer_authority():
 		players[id].free()
 		players.erase(id)
+
+
+func _on_node_game_end():
+	for id in players:
+		players[id].free()
+		players.erase(id)
+
+
 "
 
 [node name="Node" type="Node"]
@@ -461,13 +471,15 @@ focus_mode = 0
 text = "Quit"
 
 [node name="pingPanel" type="VBoxContainer" parent="."]
-offset_left = 1008.0
-offset_top = 16.0
-offset_right = 1136.0
-offset_bottom = 179.0
+offset_left = 1133.0
+offset_top = 17.0
+offset_right = 1261.0
+offset_bottom = 180.0
+rotation = 1.5708
 script = SubResource("GDScript_kw7au")
 
 [node name="icon" type="TextureRect" parent="pingPanel"]
+clip_contents = true
 layout_mode = 2
 texture = ExtResource("1_44y2y")
 
@@ -492,14 +504,25 @@ character = ExtResource("2_tthkw")
 polygon = PackedVector2Array(0, 0, 0, 648, 1152, 648, 1152, 0, 0, 0, -64, -64, 1216, -64, 1216, 712, -64, 712, -64, -64)
 
 [node name="PlayerSpawner" type="MultiplayerSpawner" parent="dumbGame"]
-_spawnable_scenes = PackedStringArray("res://mp_character.tscn")
 spawn_path = NodePath("..")
+
+[node name="verionChcker" type="PanelContainer" parent="."]
+offset_left = 676.0
+offset_top = 99.0
+offset_right = 716.0
+offset_bottom = 139.0
+
+[node name="Label" type="Label" parent="verionChcker"]
+layout_mode = 2
+text = "hello world"
+script = ExtResource("3_lkgk7")
 
 [connection signal="gameEnd" from="." to="dumbGame" method="_on_node_game_end"]
 [connection signal="gameStart" from="." to="dumbGame" method="_on_node_game_start"]
 [connection signal="playerConnected" from="." to="dumbGame" method="_on_node_player_connected"]
 [connection signal="playerDisconnected" from="." to="dumbGame" method="_on_node_player_disconnected"]
 [connection signal="cleanup" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="cleanupNetwork"]
+[connection signal="gameEnd" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="endGame"]
 [connection signal="gameStart" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="startGame"]
 [connection signal="msg" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="createMsg"]
 [connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/HBoxContainer/Host" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_host_pressed"]

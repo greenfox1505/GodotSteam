@@ -5,9 +5,11 @@
 main()
 {
     cleanup
-    build
+    randomize_version
+    export_project
     bundle
     copy
+    echo "Export complete, and copied to remote."
 }
 
 cleanup()
@@ -16,7 +18,7 @@ cleanup()
     mkdir public
 }
 
-build()
+export_project()
 {
     godot --export-debug "Win" ../public/testMultiplayer.exe --path ./testMultiplayer/ --headless
 }
@@ -42,7 +44,15 @@ godot()
 
 
 
+randomize_version()
+{
+    cat << EOF > ./testMultiplayer/versionLabel.gd
+extends Label
 
+func _ready():
+	text = "$(openssl rand -hex 16)"
+EOF
+}
 
 
 
