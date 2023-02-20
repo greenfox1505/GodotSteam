@@ -26,7 +26,7 @@ export_project()
 bundle()
 {
     pushd public
-    7z.exe a testMultiplayer.7z testMultiplayer.exe testMultiplayer.pck ../../../bin/steam_api64.dll ../../../bin/steam_appid.txt
+    7z.exe -mmt=$(nproc.exe) -mx1 a testMultiplayer.7z testMultiplayer.exe testMultiplayer.pck ../../../bin/steam_api64.dll ../../../bin/steam_appid.txt
     popd
 }
 
@@ -59,5 +59,5 @@ EOF
 
 
 cd $(dirname $0)
-main
+time main
 

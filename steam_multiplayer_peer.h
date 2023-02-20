@@ -127,20 +127,47 @@ public:
 		CSteamID steamId;
 		SteamNetworkingIdentity networkIdentity;
 
-		ConnectionData(CSteamID steamId, int peer_id) {
-			this->peer_id = peer_id;
+		ConnectionData(CSteamID steamId) {
+			this->peer_id = -1;
 			this->steamId = steamId;
 			networkIdentity = SteamNetworkingIdentity();
 			networkIdentity.SetSteamID(steamId);
 		}
 		ConnectionData(){};
+		~ConnectionData(){
+			SteamNetworkingMessages()->CloseSessionWithUser(networkIdentity);
+		}
 		bool operator==(const ConnectionData &data) {
 			return steamId == data.steamId;
 		}
+		Error send(const void *p_buffer, uint32 p_buffer_size, int transferMode, int channel) {
+			switch (SteamNetworkingMessages()->SendMessageToUser(
+					networkIdentity,
+					p_buffer,
+					p_buffer_size,
+					transferMode,
+					channel)) {
+				case k_EResultOK:
+					return OK;
+				case k_EResultNoConnection:
+					ERR_FAIL_V_MSG(ERR_DOES_NOT_EXIST, "Send Error: k_EResultNoConnection");
+				case k_nSteamNetworkingSend_AutoRestartBrokenSession:
+					ERR_FAIL_V_MSG(ERR_UNAUTHORIZED, "Send Error: k_nSteamNetworkingSend_AutoRestartBrokenSession");
+				default:
+					return ERR_BUG;
+			}
+		}
 	};
 
-	HashMap<int, Ref<ConnectionData>> connections_by_peer_id;
-	List<CSteamID> pending_connections;
+	HashMap<__int64, Ref<ConnectionData>> connections_by_steamId;
+
+	HashMap<__int64, int> steamId_to_peerId;
+	HashMap<int, CSteamID> peerId_to_steamId;
+
+	int get_peer_id(CSteamID steamId) ;
+	CSteamID get_steam_id(int peer);
+	void set_steam_id_peer(CSteamID steamId, int peer_id);
+	Ref<ConnectionData> get_connection_by_peer(int peer_id);
 
 	void SteamMultiplayerPeer::add_connection_peer(const CSteamID &steamId, int peer_id);
 	void add_pending_peer(const CSteamID &steamId);
