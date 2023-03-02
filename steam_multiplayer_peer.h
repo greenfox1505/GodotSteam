@@ -91,7 +91,7 @@ public:
 	} lobby_state = LOBBY_STATE::NOT_CONNECTED;
 	LOBBY_STATE get_state() { return lobby_state; }
 
-	bool no_nagle = true;
+	bool no_nagle = false;
 	bool no_delay = false;
 
 	int32_t target_peer = -1;
@@ -142,12 +142,8 @@ public:
 		}
 		Error send(const void *p_buffer, uint32 p_buffer_size, int transferMode, int channel)
 		{
-			switch (SteamNetworkingMessages()->SendMessageToUser(
-				networkIdentity,
-				p_buffer,
-				p_buffer_size,
-				transferMode,
-				channel))
+			auto asdf = SteamNetworkingMessages()->SendMessageToUser(networkIdentity, p_buffer, p_buffer_size, transferMode, channel);
+			switch (asdf)
 			{
 			case k_EResultOK:
 				return OK;
@@ -155,6 +151,8 @@ public:
 				ERR_FAIL_V_MSG(ERR_DOES_NOT_EXIST, "Send Error: k_EResultNoConnection");
 			case k_nSteamNetworkingSend_AutoRestartBrokenSession:
 				ERR_FAIL_V_MSG(ERR_UNAUTHORIZED, "Send Error: k_nSteamNetworkingSend_AutoRestartBrokenSession");
+			case k_EResultRateLimitExceeded:
+				ERR_FAIL_V_MSG(ERR_BUSY, "Send Error: k_EResultRateLimitExceeded");
 			default:
 				ERR_FAIL_V_MSG(ERR_BUG, "Send Error: don't know what this error is, but it's not on the expected errors list...");
 			}

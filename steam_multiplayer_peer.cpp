@@ -253,7 +253,9 @@ void SteamMultiplayerPeer::process_ping(const SteamNetworkingMessage_t *msg)
 	else
 	{
 		auto connection = connections_by_steamId[data->steam_id.ConvertToUint64()];
-
+		if( connection->peer_id == -1){
+			set_steam_id_peer(data->steam_id,data->peer_id);
+		}
 		// collect ping data
 	}
 }
@@ -299,7 +301,7 @@ CSteamID SteamMultiplayerPeer::get_steam_id(int peer)
 
 void SteamMultiplayerPeer::set_steam_id_peer(CSteamID steamId, int peer_id)
 {
-	ERR_FAIL_COND_MSG(connections_by_steamId.has(steamId.ConvertToUint64()), "STEAMID MISSING!");
+	ERR_FAIL_COND_MSG(connections_by_steamId.has(steamId.ConvertToUint64()) == false, "STEAMID MISSING!");
 	steamId_to_peerId[steamId.ConvertToUint64()] = peer_id;
 	peerId_to_steamId[peer_id] = steamId;
 	connections_by_steamId[steamId.ConvertToUint64()]->peer_id = peer_id;
