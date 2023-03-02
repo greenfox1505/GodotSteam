@@ -6,13 +6,6 @@ VARIANT_ENUM_CAST(SteamMultiplayerPeer::LOBBY_TYPE);
 VARIANT_ENUM_CAST(SteamMultiplayerPeer::CHAT_CHANGE);
 VARIANT_ENUM_CAST(SteamMultiplayerPeer::LOBBY_STATE);
 
-#define DEBUG_DATA_SIGNAL(msg,value)	\
-Dictionary a;							\
-a["msg"] = msg;							\
-a["value"] = value;						\
-emit_signal("debug_data",a)				\
-
-
 SteamMultiplayerPeer::SteamMultiplayerPeer() : callbackLobbyMessage(this, &SteamMultiplayerPeer::lobby_message_scb),
 											   callbackLobbyChatUpdate(this, &SteamMultiplayerPeer::lobby_chat_update_scb),
 											   callbackNetworkMessagesSessionRequest(this, &SteamMultiplayerPeer::network_messages_session_request_scb),
@@ -51,7 +44,7 @@ void SteamMultiplayerPeer::_bind_methods()
 	BIND_ENUM_CONSTANT(CLIENT);
 
 	// MATCHMAKING SIGNALS //////////////////////
-	//todo these
+	// todo these
 	ADD_SIGNAL(MethodInfo("favorites_list_accounts_updated", PropertyInfo(Variant::INT, "result")));
 	ADD_SIGNAL(MethodInfo("favorites_list_changed", PropertyInfo(Variant::DICTIONARY, "favorite")));
 	ADD_SIGNAL(MethodInfo("lobby_message", PropertyInfo(Variant::INT, "lobby_id"), PropertyInfo(Variant::INT, "user"), PropertyInfo(Variant::STRING, "message"), PropertyInfo(Variant::INT, "chat_type")));
@@ -64,7 +57,7 @@ void SteamMultiplayerPeer::_bind_methods()
 	ADD_SIGNAL(MethodInfo("lobby_match_list", PropertyInfo(Variant::ARRAY, "lobbies")));
 	ADD_SIGNAL(MethodInfo("lobby_kicked", PropertyInfo(Variant::INT, "lobby_id"), PropertyInfo(Variant::INT, "admin_id"), PropertyInfo(Variant::INT, "due_to_disconnect")));
 
-	//debug
+	// debug
 	ADD_SIGNAL(MethodInfo("debug_data", PropertyInfo(Variant::DICTIONARY, "data")));
 }
 
@@ -120,17 +113,12 @@ Error SteamMultiplayerPeer::put_packet(const uint8_t *p_buffer, int p_buffer_siz
 	if (target_peer == 0)
 	{ // send to ALL
 		auto returnValue = OK;
-		for (KeyValue<__int64, Ref<ConnectionData>> &E : connections_by_steamId)
+		for (auto E = connections_by_steamId.begin(); E; ++E)
 		{
-			auto errorCode =
-				E.value->send(
-					p_buffer,
-					p_buffer_size,
-					transferMode,
-					channel);
+			auto errorCode = E->value->send(p_buffer, p_buffer_size, transferMode, channel);
 			if (errorCode != OK)
 			{
-				DEBUG_DATA_SIGNAL("put_packet failed!",errorCode)
+				DEBUG_DATA_SIGNAL_V("put_packet failed!", errorCode);
 				returnValue = errorCode;
 			}
 		}
@@ -209,8 +197,20 @@ void SteamMultiplayerPeer::poll()
 		}
 	}
 	{
-		// ping all users that we don't have a connection with
-	} {
+		auto a = PingPayload();
+		for (auto E = connections_by_steamId.begin(); E; ++E)
+		{
+			auto t = OS::get_singleton()->get_ticks_msec() - MAX_TIME_WITHOUT_MESSAGE; // pretty sure this will wrap. Should I fix this?
+			auto key = E->key;
+			Ref<SteamMultiplayerPeer::ConnectionData> value = E->value;
+
+			if (value->peer_id == -1 || t < value->last_msg_timestamp)
+			{
+				value->ping(a);
+			}
+		}
+	}
+	{
 		SteamNetworkingMessage_t *messages[MAX_MESSAGE_COUNT];
 		int count = SteamNetworkingMessages()->ReceiveMessagesOnChannel(CHANNEL_MANAGEMENT::PING_CHANNEL, messages, MAX_MESSAGE_COUNT);
 		for (int i = 0; i < count; i++)
@@ -235,9 +235,27 @@ void SteamMultiplayerPeer::process_message(const SteamNetworkingMessage_t *msg)
 }
 void SteamMultiplayerPeer::process_ping(const SteamNetworkingMessage_t *msg)
 {
-	ERR_FAIL_COND_EDMSG(sizeof(PingPayload) != msg->GetSize(), "wrong size of payload");
+	ERR_FAIL_COND_MSG(sizeof(PingPayload) != msg->GetSize(), "wrong size of payload");
 
 	auto data = (PingPayload *)msg->GetData();
+	if (data->peer_id == -1)
+	{
+		// respond to ping
+		auto p = PingPayload();
+		p.peer_id = unique_id;
+		p.steam_id = SteamUser()->GetSteamID();
+		auto err = connections_by_steamId[msg->m_identityPeer.GetSteamID64()]->ping(p);
+		if (err != OK)
+		{
+			DEBUG_DATA_SIGNAL_V("process_ping: ping failed?", err);
+		}
+	}
+	else
+	{
+		auto connection = connections_by_steamId[data->steam_id.ConvertToUint64()];
+
+		// collect ping data
+	}
 }
 
 void SteamMultiplayerPeer::close()
@@ -298,8 +316,12 @@ void SteamMultiplayerPeer::add_connection_peer(const CSteamID &steamId, int peer
 	ERR_FAIL_COND_MSG(steamId == SteamUser()->GetSteamID(), "YOU CAN ADD A PEER THAT IS YOU!");
 	Ref<ConnectionData> ccc = Ref<ConnectionData>(memnew(ConnectionData(steamId)));
 	connections_by_steamId[steamId.ConvertToUint64()] = ccc;
-	bool didWork = SteamNetworkingMessages()->AcceptSessionWithUser(ccc->networkIdentity);
-	ERR_FAIL_COND_MSG(didWork, "Message failed to join?");
+	auto a = ccc->ping();
+	if (a != OK)
+	{
+		DEBUG_DATA_SIGNAL_V("add_connection_peer: Error sending ping", a);
+	}
+	ERR_FAIL_COND_MSG(a != OK, "Message failed to join?");
 }
 
 void SteamMultiplayerPeer::add_pending_peer(const CSteamID &steamId)
@@ -321,7 +343,7 @@ void SteamMultiplayerPeer::removed_connection_peer(const CSteamID &steamId)
 Error SteamMultiplayerPeer::create_lobby(LOBBY_TYPE lobby_type, int max_players)
 {
 	ERR_FAIL_COND_V_MSG(lobby_state != LOBBY_STATE::NOT_CONNECTED, ERR_ALREADY_IN_USE, "CANNOT CREATE A LOBBY WHILE IN A LOBBY!");
-	ERR_FAIL_COND_V_MSG(SteamMatchmaking() != NULL, ERR_DOES_NOT_EXIST, "`SteamMatchmaking()` is null.");
+	ERR_FAIL_COND_V_MSG(SteamMatchmaking() == NULL, ERR_DOES_NOT_EXIST, "`SteamMatchmaking()` is null.");
 
 	SteamAPICall_t api_call = SteamMatchmaking()->CreateLobby((ELobbyType)lobby_type, max_players);
 	callResultCreateLobby.Set(api_call, this, &SteamMultiplayerPeer::lobby_created);
@@ -366,6 +388,7 @@ void SteamMultiplayerPeer::lobby_message_scb(LobbyChatMsg_t *call_data)
 {
 	if (lobby_id != call_data->m_ulSteamIDLobby)
 	{
+		DEBUG_DATA_SIGNAL("lobby_message_scb: recived message on that isn't for this lobby?");
 		return;
 	}
 	Packet *packet = new Packet;
@@ -436,7 +459,7 @@ void SteamMultiplayerPeer::network_messages_session_failed_scb(SteamNetworkingMe
 {
 	SteamNetConnectionInfo_t info = call_data->m_info;
 	// Parse out the reason for failure
-	DEBUG_DATA_SIGNAL("network_messages_session_failed_scb",info.m_eEndReason);
+	DEBUG_DATA_SIGNAL_V("network_messages_session_failed_scb", info.m_eEndReason);
 	// emit_signal("network_messages_session_failed", reason);
 }
 

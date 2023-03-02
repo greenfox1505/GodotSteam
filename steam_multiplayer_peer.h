@@ -9,6 +9,7 @@
 #include "godotsteam.h"
 // #include "steam_id.h"
 
+#define MAX_TIME_WITHOUT_MESSAGE 1000
 
 class SteamMultiplayerPeer : public MultiplayerPeer
 {
@@ -58,8 +59,8 @@ public:
 
 	struct PingPayload
 	{
-		int peer_id;
-		CSteamID steam_id;
+		int peer_id = -1;
+		CSteamID steam_id = CSteamID();
 	};
 
 	enum LOBBY_TYPE
@@ -118,13 +119,15 @@ public:
 
 	public:
 		int peer_id;
-		CSteamID steamId;
+		CSteamID steam_id;
+		uint64_t last_msg_timestamp;
 		SteamNetworkingIdentity networkIdentity;
 
 		ConnectionData(CSteamID steamId)
 		{
 			this->peer_id = -1;
-			this->steamId = steamId;
+			this->steam_id = steamId;
+			this->last_msg_timestamp = 0;
 			networkIdentity = SteamNetworkingIdentity();
 			networkIdentity.SetSteamID(steamId);
 		}
@@ -135,7 +138,7 @@ public:
 		}
 		bool operator==(const ConnectionData &data)
 		{
-			return steamId == data.steamId;
+			return steam_id == data.steam_id;
 		}
 		Error send(const void *p_buffer, uint32 p_buffer_size, int transferMode, int channel)
 		{
@@ -155,6 +158,16 @@ public:
 			default:
 				ERR_FAIL_V_MSG(ERR_BUG, "Send Error: don't know what this error is, but it's not on the expected errors list...");
 			}
+		}
+		Error ping(const PingPayload &p)
+		{
+			last_msg_timestamp = OS::get_singleton()->get_ticks_msec(); // only ping once per maxDeltaT;
+			return send((void *)&p, sizeof(PingPayload), TRANSFER_MODE_RELIABLE, PING_CHANNEL);
+		}
+		Error ping()
+		{
+			auto p = PingPayload();
+			return ping(p);
 		}
 	};
 
@@ -187,5 +200,17 @@ public:
 	void process_ping(const SteamNetworkingMessage_t *msg);
 	// void poll_channel(int nLocalChannel, void (*func)(SteamNetworkingMessage_t));
 };
+
+// todo: make these empty for release builds
+#define DEBUG_DATA_SIGNAL_V(msg, value) \
+	Dictionary a;                       \
+	a["msg"] = msg;                     \
+	a["value"] = value;                 \
+	emit_signal("debug_data", a)
+
+#define DEBUG_DATA_SIGNAL(msg) \
+	Dictionary a;              \
+	a["msg"] = msg;            \
+	emit_signal("debug_data", a)
 
 #endif
