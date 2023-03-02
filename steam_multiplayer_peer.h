@@ -11,6 +11,8 @@
 
 #define MAX_TIME_WITHOUT_MESSAGE 1000
 
+Dictionary steamIdToDict(CSteamID input);
+
 class SteamMultiplayerPeer : public MultiplayerPeer
 {
 public:
@@ -25,6 +27,7 @@ public:
 
 	CSteamID lobby_id = CSteamID();
 	CSteamID lobby_owner = CSteamID();
+	CSteamID steam_id = CSteamID();
 
 	SteamMultiplayerPeer();
 	uint64 get_lobby_id();
@@ -69,7 +72,7 @@ public:
 		FRIENDS_ONLY = ELobbyType::k_ELobbyTypeFriendsOnly,
 		PUBLIC = ELobbyType::k_ELobbyTypePublic,
 		INVISIBLE = ELobbyType::k_ELobbyTypeInvisible,
-		PRIVATE_UNIQUE = ELobbyType::k_ELobbyTypePrivateUnique,
+		// PRIVATE_UNIQUE = ELobbyType::k_ELobbyTypePrivateUnique, //this type must be created from Steam's web api.
 	};
 
 	enum CHAT_CHANGE
@@ -153,6 +156,8 @@ public:
 				ERR_FAIL_V_MSG(ERR_UNAUTHORIZED, "Send Error: k_nSteamNetworkingSend_AutoRestartBrokenSession");
 			case k_EResultRateLimitExceeded:
 				ERR_FAIL_V_MSG(ERR_BUSY, "Send Error: k_EResultRateLimitExceeded");
+			case k_EResultConnectFailed:
+				ERR_FAIL_V_MSG(FAILED, "Send Error: k_EResultConnectFailed");
 			default:
 				ERR_FAIL_V_MSG(ERR_BUG, "Send Error: don't know what this error is, but it's not on the expected errors list...");
 			}
@@ -197,6 +202,28 @@ public:
 	void process_message(const SteamNetworkingMessage_t *msg);
 	void process_ping(const SteamNetworkingMessage_t *msg);
 	// void poll_channel(int nLocalChannel, void (*func)(SteamNetworkingMessage_t));
+
+	Dictionary collect_debug_data()
+	{
+		auto output = Dictionary();
+
+		output["lobby_id"] = steamIdToDict(lobby_id);
+		output["lobby_owner"] = steamIdToDict(lobby_owner);
+		output["steam_id"] = steamIdToDict(steam_id);
+		output["lobby_state"] = lobby_state;
+		output["no_nagle"] = no_nagle;
+		output["no_delay"] = no_delay;
+		output["target_peer"] = target_peer;
+		output["unique_id"] = unique_id;
+		output["transfer_mode"] = transfer_mode;
+
+		// incoming_packets
+		// connections_by_steamId
+		// steamId_to_peerId
+		// peerId_to_steamId
+
+		return output;
+	}
 };
 
 // todo: make these empty for release builds

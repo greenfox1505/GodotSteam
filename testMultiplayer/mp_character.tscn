@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://bx6j1445ndl7x"]
+[gd_scene load_steps=6 format=3 uid="uid://bx6j1445ndl7x"]
 
 [ext_resource type="Texture2D" uid="uid://c056bh175wcr" path="res://icon.svg" id="1_tdo4x"]
 
@@ -13,6 +13,10 @@ const JUMP_VELOCITY = -400.0
 
 # Get the gravity from the project settings to be synced with RigidBody nodes.
 var gravity = ProjectSettings.get_setting(\"physics/2d/default_gravity\")
+
+
+func _ready():
+	pass
 
 
 func _physics_process(delta):
@@ -38,6 +42,8 @@ func _physics_process(delta):
 
 	move_and_slide()
 	interPos = position
+
+
 "
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_m1u1p"]
@@ -47,6 +53,21 @@ size = Vector2(16, 16)
 properties/0/path = NodePath(".:interPos")
 properties/0/spawn = true
 properties/0/sync = true
+
+[sub_resource type="GDScript" id="GDScript_o4mph"]
+script/source = "extends Node
+
+#@export var position:Transform2D: set(value):
+#
+#
+#
+#func _process(delta):
+#	pass
+#
+#func set_pos(value):
+#	position = value
+#
+"
 
 [node name="MPCharacter" type="CharacterBody2D"]
 position = Vector2(264, 512)
@@ -62,3 +83,6 @@ shape = SubResource("RectangleShape2D_m1u1p")
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_interval = 0.05
 replication_config = SubResource("SceneReplicationConfig_txcdj")
+
+[node name="positionLerper" type="Node" parent="."]
+script = SubResource("GDScript_o4mph")

@@ -1,5 +1,5 @@
 #include "steam_multiplayer_peer.h"
-
+#include "core/io/json.h"
 #include "godotsteam.h"
 
 VARIANT_ENUM_CAST(SteamMultiplayerPeer::LOBBY_TYPE);
@@ -12,6 +12,7 @@ SteamMultiplayerPeer::SteamMultiplayerPeer() : callbackLobbyMessage(this, &Steam
 											   callbackNetworkMessagesSessionFailed(this, &SteamMultiplayerPeer::network_messages_session_failed_scb),
 											   callbackLobbyJoined(this, &SteamMultiplayerPeer::lobby_joined_scb)
 {
+	// this->steam_id == SteamUser()->GetSteamID();
 }
 
 uint64 SteamMultiplayerPeer::get_lobby_id()
@@ -24,12 +25,13 @@ void SteamMultiplayerPeer::_bind_methods()
 	ClassDB::bind_method(D_METHOD("create_lobby", "lobby_type", "max_players"), &SteamMultiplayerPeer::create_lobby, DEFVAL(32));
 	ClassDB::bind_method(D_METHOD("connect_lobby", "lobby_id"), &SteamMultiplayerPeer::join_lobby);
 	ClassDB::bind_method(D_METHOD("get_state"), &SteamMultiplayerPeer::get_state);
+	ClassDB::bind_method(D_METHOD("collect_debug_data"), &SteamMultiplayerPeer::collect_debug_data);
 
 	BIND_ENUM_CONSTANT(PRIVATE);
 	BIND_ENUM_CONSTANT(FRIENDS_ONLY);
 	BIND_ENUM_CONSTANT(PUBLIC);
 	BIND_ENUM_CONSTANT(INVISIBLE);
-	BIND_ENUM_CONSTANT(PRIVATE_UNIQUE);
+	// BIND_ENUM_CONSTANT(PRIVATE_UNIQUE);
 
 	BIND_ENUM_CONSTANT(ENTERED);
 	BIND_ENUM_CONSTANT(LEFT);
@@ -253,8 +255,9 @@ void SteamMultiplayerPeer::process_ping(const SteamNetworkingMessage_t *msg)
 	else
 	{
 		auto connection = connections_by_steamId[data->steam_id.ConvertToUint64()];
-		if( connection->peer_id == -1){
-			set_steam_id_peer(data->steam_id,data->peer_id);
+		if (connection->peer_id == -1)
+		{
+			set_steam_id_peer(data->steam_id, data->peer_id);
 		}
 		// collect ping data
 	}
@@ -315,7 +318,11 @@ Ref<SteamMultiplayerPeer::ConnectionData> SteamMultiplayerPeer::get_connection_b
 
 void SteamMultiplayerPeer::add_connection_peer(const CSteamID &steamId, int peer_id)
 {
-	ERR_FAIL_COND_MSG(steamId == SteamUser()->GetSteamID(), "YOU CAN ADD A PEER THAT IS YOU!");
+	if (steamId == SteamUser()->GetSteamID())
+	{
+		ERR_PRINT("YOU CANNOT ADD A PEER THAT IS YOU!");
+		return;
+	}
 	Ref<ConnectionData> ccc = Ref<ConnectionData>(memnew(ConnectionData(steamId)));
 	connections_by_steamId[steamId.ConvertToUint64()] = ccc;
 	auto a = ccc->ping();
@@ -347,6 +354,13 @@ Error SteamMultiplayerPeer::create_lobby(LOBBY_TYPE lobby_type, int max_players)
 	ERR_FAIL_COND_V_MSG(lobby_state != LOBBY_STATE::NOT_CONNECTED, ERR_ALREADY_IN_USE, "CANNOT CREATE A LOBBY WHILE IN A LOBBY!");
 	ERR_FAIL_COND_V_MSG(SteamMatchmaking() == NULL, ERR_DOES_NOT_EXIST, "`SteamMatchmaking()` is null.");
 
+	this->steam_id == Steam::get_singleton()->getSteamID();
+
+	
+	JSON json;
+	auto a = json.stringify(steamIdToDict(steam_id))
+	print_error(a);
+
 	SteamAPICall_t api_call = SteamMatchmaking()->CreateLobby((ELobbyType)lobby_type, max_players);
 	callResultCreateLobby.Set(api_call, this, &SteamMultiplayerPeer::lobby_created);
 	unique_id = 1;
@@ -375,6 +389,14 @@ void SteamMultiplayerPeer::lobby_created(LobbyCreated_t *lobby_data, bool io_fai
 Error SteamMultiplayerPeer::join_lobby(uint64 lobbyId)
 {
 	ERR_FAIL_COND_V_MSG(lobby_state != LOBBY_STATE::NOT_CONNECTED, ERR_ALREADY_IN_USE, "CANNOT JOIN A LOBBY WHILE IN A LOBBY!");
+
+	this->steam_id == Steam::get_singleton()->getSteamID();
+
+	JSON json;
+	auto a = json.stringify(steamIdToDict(steam_id))
+	print_error(a);
+	// ERR_PRINT();
+
 	if (SteamMatchmaking() != NULL)
 	{
 		lobby_state = LOBBY_STATE::CLIENT_PENDING;
@@ -486,7 +508,7 @@ void SteamMultiplayerPeer::lobby_joined_scb(LobbyEnter_t *lobbyData)
 		for (int i = 0; i < count; i++)
 		{
 			CSteamID member = sm->GetLobbyMemberByIndex(lobby_id, i);
-			if (member != lobby_owner)
+			if (member != this->steam_id)
 			{ // lobby owner was added above. should happen FIRST
 				add_pending_peer(member);
 			}
@@ -536,7 +558,18 @@ void SteamMultiplayerPeer::lobby_joined_scb(LobbyEnter_t *lobbyData)
 		{
 			ERR_PRINT("Joined lobby failed!" + output);
 			lobby_state = LOBBY_STATE::NOT_CONNECTED;
+			DEBUG_DATA_SIGNAL_V(output, lobbyData->m_EChatRoomEnterResponse);
 			return;
 		}
 	}
+}
+
+Dictionary steamIdToDict(CSteamID input)
+{
+	auto output = Dictionary();
+	output["GetAccountID"] = input.GetAccountID();
+	output["GetUnAccountInstance"] = input.GetUnAccountInstance();
+	output["GetEAccountType"] = input.GetEAccountType();
+	output["GetEUniverse"] = input.GetEUniverse();
+	return output;
 }

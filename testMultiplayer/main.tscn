@@ -95,7 +95,7 @@ script/source = "extends Label
 func _process(delta):
 	var t = get_tree().get_multiplayer().get_unique_id()
 
-	text = \"current%d\" % t
+	text = \"current %d\\n\" % t
 	var a = get_tree().get_multiplayer().get_peers()
 	for i in a:
 		text += \"%d,\" % i
@@ -215,14 +215,17 @@ func join_requested(lobby_id, steam_id):
 #	gameStart.emit()
 
 func _process(delta):
-	Steam.run_callbacks() 
+	Steam.run_callbacks()
+	if peer != null:
+		%debugData.text = JSON.stringify(peer.collect_debug_data(),\" \")
+		pass
 	pass
 
 
 func _on_host_pressed():
 	setUpNewPeer()
 	networkManager.createMsg(\"hosting!\")
-	peer.create_lobby(SteamMultiplayerPeer.FRIENDS_ONLY,99)
+	peer.create_lobby(SteamMultiplayerPeer.PRIVATE,99)
 	
 	get_tree().get_multiplayer().set_multiplayer_peer(peer)
 	gameStart.emit()
@@ -241,6 +244,13 @@ func setUpNewPeer():
 	peer = SteamMultiplayerPeer.new()
 	peer.lobby_created.connect(lobby_created)
 	
+
+
+func _on_quit_pressed():
+	if peer == null:
+		return #do nothing
+	peer.close()
+	peer = null
 "
 
 [sub_resource type="GDScript" id="GDScript_kw7au"]
@@ -358,10 +368,10 @@ script = SubResource("GDScript_xoiub")
 clearOldMessages = false
 
 [node name="connectPanel" type="PanelContainer" parent="."]
-offset_left = 8.0
-offset_top = 8.0
-offset_right = 519.0
-offset_bottom = 315.0
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 628.0
+grow_vertical = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="connectPanel"]
 layout_mode = 2
@@ -448,6 +458,17 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_vertical = 3
 
+[node name="debugDataBox" type="ScrollContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 0
+
+[node name="debugData" type="Label" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/debugDataBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
 [node name="steam" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer" node_paths=PackedStringArray("networkManager")]
 unique_name_in_owner = true
 layout_mode = 2
@@ -466,7 +487,6 @@ focus_mode = 0
 text = "Host"
 
 [node name="Quit" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam"]
-visible = false
 layout_mode = 2
 focus_mode = 0
 text = "Quit"
@@ -534,4 +554,5 @@ script = ExtResource("3_lkgk7")
 [connection signal="gameStart" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" to="." method="startGame"]
 [connection signal="msg" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" to="." method="createMsg"]
 [connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam/Host" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" method="_on_host_pressed"]
+[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam/Quit" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" method="_on_quit_pressed"]
 [connection signal="pressed" from="pingPanel/Button" to="pingPanel" method="_on_button_pressed"]
