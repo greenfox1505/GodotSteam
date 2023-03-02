@@ -4,28 +4,14 @@
 // Include Godot headers
 #include "scene/main/multiplayer_peer.h"
 
-//Steam APIs
+// Steam APIs
 #include "core/os/os.h"
 #include "godotsteam.h"
+// #include "steam_id.h"
 
-class SteamID : public RefCounted {
-	GDCLASS(SteamID, RefCounted);
 
-	CSteamID data;
-
-public:
-	uint64 to_int() {
-		return data.ConvertToUint64();
-	}
-	void from_int(uint64 i) {
-		data.SetFromUint64(i);
-	}
-
-protected:
-	static void _bind_methods();
-};
-
-class SteamMultiplayerPeer : public MultiplayerPeer {
+class SteamMultiplayerPeer : public MultiplayerPeer
+{
 public:
 	GDCLASS(SteamMultiplayerPeer, MultiplayerPeer);
 
@@ -44,7 +30,7 @@ public:
 
 	static void _bind_methods();
 
-	//MultiplayerPeer stuff
+	// MultiplayerPeer stuff
 	virtual int get_available_packet_count() const override;
 	virtual Error get_packet(const uint8_t **r_buffer, int &r_buffer_size) override;
 	virtual Error put_packet(const uint8_t *p_buffer, int p_buffer_size) override;
@@ -64,17 +50,20 @@ public:
 
 	// all SteamGodot from here on down
 
-	enum CHANNEL_MANAGEMENT {
+	enum CHANNEL_MANAGEMENT
+	{
 		PING_CHANNEL,
 		SIZE
 	};
 
-	struct PingPayload {
+	struct PingPayload
+	{
 		int peer_id;
 		CSteamID steam_id;
 	};
 
-	enum LOBBY_TYPE {
+	enum LOBBY_TYPE
+	{
 		PRIVATE = ELobbyType::k_ELobbyTypePrivate,
 		FRIENDS_ONLY = ELobbyType::k_ELobbyTypeFriendsOnly,
 		PUBLIC = ELobbyType::k_ELobbyTypePublic,
@@ -82,7 +71,8 @@ public:
 		PRIVATE_UNIQUE = ELobbyType::k_ELobbyTypePrivateUnique,
 	};
 
-	enum CHAT_CHANGE {
+	enum CHAT_CHANGE
+	{
 		ENTERED = k_EChatMemberStateChangeEntered,
 		LEFT = k_EChatMemberStateChangeLeft,
 		DISCONNECTED = k_EChatMemberStateChangeDisconnected,
@@ -90,13 +80,15 @@ public:
 		BANNED = k_EChatMemberStateChangeBanned
 	};
 
-	enum LOBBY_STATE {
+	enum LOBBY_STATE
+	{
 		NOT_CONNECTED,
 		HOST_PENDING,
 		HOSTING,
 		CLIENT_PENDING,
 		CLIENT
 	} lobby_state = LOBBY_STATE::NOT_CONNECTED;
+	LOBBY_STATE get_state() { return lobby_state; }
 
 	bool no_nagle = true;
 	bool no_delay = false;
@@ -106,7 +98,8 @@ public:
 	// ConnectionStatus connection_status = ConnectionStatus::CONNECTION_DISCONNECTED;
 	TransferMode transfer_mode = TransferMode::TRANSFER_MODE_RELIABLE;
 
-	struct Packet {
+	struct Packet
+	{
 		uint8_t data[MAX_STEAM_PACKET_SIZE];
 		uint32_t size;
 		CSteamID sender;
@@ -114,12 +107,13 @@ public:
 		int channel = 0;
 		TransferMode transfer_mode = TRANSFER_MODE_RELIABLE;
 	};
-	Packet *current_packet = new Packet; //this packet gets deleted at the first get_packet request
+	Packet *current_packet = new Packet; // this packet gets deleted at the first get_packet request
 	List<Packet *> incoming_packets;
 
 	_FORCE_INLINE_ bool _is_active() const { return lobby_state != LOBBY_STATE::NOT_CONNECTED; }
 
-	class ConnectionData : public RefCounted {
+	class ConnectionData : public RefCounted
+	{
 		GDCLASS(ConnectionData, RefCounted);
 
 	public:
@@ -127,34 +121,39 @@ public:
 		CSteamID steamId;
 		SteamNetworkingIdentity networkIdentity;
 
-		ConnectionData(CSteamID steamId) {
+		ConnectionData(CSteamID steamId)
+		{
 			this->peer_id = -1;
 			this->steamId = steamId;
 			networkIdentity = SteamNetworkingIdentity();
 			networkIdentity.SetSteamID(steamId);
 		}
 		ConnectionData(){};
-		~ConnectionData(){
+		~ConnectionData()
+		{
 			SteamNetworkingMessages()->CloseSessionWithUser(networkIdentity);
 		}
-		bool operator==(const ConnectionData &data) {
+		bool operator==(const ConnectionData &data)
+		{
 			return steamId == data.steamId;
 		}
-		Error send(const void *p_buffer, uint32 p_buffer_size, int transferMode, int channel) {
+		Error send(const void *p_buffer, uint32 p_buffer_size, int transferMode, int channel)
+		{
 			switch (SteamNetworkingMessages()->SendMessageToUser(
-					networkIdentity,
-					p_buffer,
-					p_buffer_size,
-					transferMode,
-					channel)) {
-				case k_EResultOK:
-					return OK;
-				case k_EResultNoConnection:
-					ERR_FAIL_V_MSG(ERR_DOES_NOT_EXIST, "Send Error: k_EResultNoConnection");
-				case k_nSteamNetworkingSend_AutoRestartBrokenSession:
-					ERR_FAIL_V_MSG(ERR_UNAUTHORIZED, "Send Error: k_nSteamNetworkingSend_AutoRestartBrokenSession");
-				default:
-					return ERR_BUG;
+				networkIdentity,
+				p_buffer,
+				p_buffer_size,
+				transferMode,
+				channel))
+			{
+			case k_EResultOK:
+				return OK;
+			case k_EResultNoConnection:
+				ERR_FAIL_V_MSG(ERR_DOES_NOT_EXIST, "Send Error: k_EResultNoConnection");
+			case k_nSteamNetworkingSend_AutoRestartBrokenSession:
+				ERR_FAIL_V_MSG(ERR_UNAUTHORIZED, "Send Error: k_nSteamNetworkingSend_AutoRestartBrokenSession");
+			default:
+				ERR_FAIL_V_MSG(ERR_BUG, "Send Error: don't know what this error is, but it's not on the expected errors list...");
 			}
 		}
 	};
@@ -164,7 +163,7 @@ public:
 	HashMap<__int64, int> steamId_to_peerId;
 	HashMap<int, CSteamID> peerId_to_steamId;
 
-	int get_peer_id(CSteamID steamId) ;
+	int get_peer_id(CSteamID steamId);
 	CSteamID get_steam_id(int peer);
 	void set_steam_id_peer(CSteamID steamId, int peer_id);
 	Ref<ConnectionData> get_connection_by_peer(int peer_id);
@@ -179,6 +178,7 @@ public:
 	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_message_scb, LobbyChatMsg_t, callbackLobbyMessage);
 	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_chat_update_scb, LobbyChatUpdate_t, callbackLobbyChatUpdate);
 	STEAM_CALLBACK(SteamMultiplayerPeer, network_messages_session_request_scb, SteamNetworkingMessagesSessionRequest_t, callbackNetworkMessagesSessionRequest);
+	STEAM_CALLBACK(SteamMultiplayerPeer, network_messages_session_failed_scb, SteamNetworkingMessagesSessionFailed_t, callbackNetworkMessagesSessionFailed);
 	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_joined_scb, LobbyEnter_t, callbackLobbyJoined);
 
 	int _get_steam_transfer_flag();

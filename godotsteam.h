@@ -1300,6 +1300,7 @@ class Steam: public Object {
 		int getGameBadgeLevel(int series, bool foil);
 		int getPlayerSteamLevel();
 		uint64_t getSteamID();
+		// SteamID getSteamIDrec();
 		Dictionary getVoice();
 		uint32 getVoiceOptimalSampleRate();
 		Dictionary initiateGameConnection(uint64_t server_id, uint32 server_ip, uint16 server_port, bool secure);
