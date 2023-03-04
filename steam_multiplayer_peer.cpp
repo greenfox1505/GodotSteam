@@ -6,22 +6,20 @@ VARIANT_ENUM_CAST(SteamMultiplayerPeer::LOBBY_TYPE);
 VARIANT_ENUM_CAST(SteamMultiplayerPeer::CHAT_CHANGE);
 VARIANT_ENUM_CAST(SteamMultiplayerPeer::LOBBY_STATE);
 
-SteamMultiplayerPeer::SteamMultiplayerPeer() : callbackLobbyMessage(this, &SteamMultiplayerPeer::lobby_message_scb),
-											   callbackLobbyChatUpdate(this, &SteamMultiplayerPeer::lobby_chat_update_scb),
-											   callbackNetworkMessagesSessionRequest(this, &SteamMultiplayerPeer::network_messages_session_request_scb),
-											   callbackNetworkMessagesSessionFailed(this, &SteamMultiplayerPeer::network_messages_session_failed_scb),
-											   callbackLobbyJoined(this, &SteamMultiplayerPeer::lobby_joined_scb)
-{
+SteamMultiplayerPeer::SteamMultiplayerPeer() :
+		callbackLobbyMessage(this, &SteamMultiplayerPeer::lobby_message_scb),
+		callbackLobbyChatUpdate(this, &SteamMultiplayerPeer::lobby_chat_update_scb),
+		callbackNetworkMessagesSessionRequest(this, &SteamMultiplayerPeer::network_messages_session_request_scb),
+		callbackNetworkMessagesSessionFailed(this, &SteamMultiplayerPeer::network_messages_session_failed_scb),
+		callbackLobbyJoined(this, &SteamMultiplayerPeer::lobby_joined_scb) {
 	// this->steam_id == SteamUser()->GetSteamID();
 }
 
-uint64 SteamMultiplayerPeer::get_lobby_id()
-{
+uint64 SteamMultiplayerPeer::get_lobby_id() {
 	return lobby_id.ConvertToUint64();
 }
 
-void SteamMultiplayerPeer::_bind_methods()
-{
+void SteamMultiplayerPeer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("create_lobby", "lobby_type", "max_players"), &SteamMultiplayerPeer::create_lobby, DEFVAL(32));
 	ClassDB::bind_method(D_METHOD("connect_lobby", "lobby_id"), &SteamMultiplayerPeer::join_lobby);
 	ClassDB::bind_method(D_METHOD("get_state"), &SteamMultiplayerPeer::get_state);
@@ -63,92 +61,80 @@ void SteamMultiplayerPeer::_bind_methods()
 	ADD_SIGNAL(MethodInfo("debug_data", PropertyInfo(Variant::DICTIONARY, "data")));
 }
 
-int SteamMultiplayerPeer::get_available_packet_count() const
-{
+int SteamMultiplayerPeer::get_available_packet_count() const {
 	return incoming_packets.size();
 }
 
-Error SteamMultiplayerPeer::get_packet(const uint8_t **r_buffer, int &r_buffer_size)
-{
+Error SteamMultiplayerPeer::get_packet(const uint8_t **r_buffer, int &r_buffer_size) {
 	ERR_FAIL_COND_V_MSG(incoming_packets.size() == 0, ERR_UNAVAILABLE, "No incoming packets available.");
 
-	delete current_packet;
-	current_packet = incoming_packets.front()->get();
-	r_buffer_size = current_packet->size;
-	*r_buffer = (const uint8_t *)(&current_packet->data);
+	delete next_received_packet;
+	next_received_packet = incoming_packets.front()->get();
+	r_buffer_size = next_received_packet->size;
+	*r_buffer = (const uint8_t *)(&next_received_packet->data);
 	incoming_packets.pop_front();
 	return OK;
 }
 
-int SteamMultiplayerPeer::_get_steam_transfer_flag()
-{
+int SteamMultiplayerPeer::_get_steam_transfer_flag() {
 	// return k_nSteamNetworkingSend_ReliableNoNagle; //todo this helped fix some bugs with unreliable packets
-	auto qwer = get_transfer_mode();
+	auto transferMode = get_transfer_mode();
 
 	auto agroFlag = k_nSteamNetworkingSend_UseCurrentThread | k_nSteamNetworkingSend_AutoRestartBrokenSession;
 
 	auto autoFlags = (k_nSteamNetworkingSend_NoNagle * no_nagle) |
-					 (k_nSteamNetworkingSend_NoDelay * no_delay) | agroFlag;
+			(k_nSteamNetworkingSend_NoDelay * no_delay) | agroFlag;
 
-	switch (get_transfer_mode())
-	{
-	case TransferMode::TRANSFER_MODE_RELIABLE:
-		return k_nSteamNetworkingSend_Reliable | autoFlags;
-		break;
-	case TransferMode::TRANSFER_MODE_UNRELIABLE:
-		return k_nSteamNetworkingSend_Unreliable | autoFlags;
-		break;
-	case TransferMode::TRANSFER_MODE_UNRELIABLE_ORDERED:
-		ERR_FAIL_V_MSG(
-			k_nSteamNetworkingSend_Reliable | autoFlags,
-			"UNRELIABLE UNORDERED NOT SUPPORTED! SENDING AS RELIABLE!");
-		break;
+	switch (transferMode) {
+		case TransferMode::TRANSFER_MODE_RELIABLE:
+			return k_nSteamNetworkingSend_Reliable | autoFlags;
+			break;
+		case TransferMode::TRANSFER_MODE_UNRELIABLE:
+			return k_nSteamNetworkingSend_Unreliable | autoFlags;
+			break;
+		case TransferMode::TRANSFER_MODE_UNRELIABLE_ORDERED:
+			ERR_FAIL_V_MSG(
+					k_nSteamNetworkingSend_Reliable | autoFlags,
+					"UNRELIABLE UNORDERED NOT SUPPORTED! SENDING AS RELIABLE!");
+			break;
 	}
 	ERR_FAIL_V_MSG(-1, "flags error. not sure what happened!?");
 }
 
-Error SteamMultiplayerPeer::put_packet(const uint8_t *p_buffer, int p_buffer_size)
-{
+Error SteamMultiplayerPeer::put_packet(const uint8_t *p_buffer, int p_buffer_size) {
 	int transferMode = _get_steam_transfer_flag();
 	auto channel = get_transfer_channel() + CHANNEL_MANAGEMENT::SIZE;
 
-	if (target_peer == 0)
-	{ // send to ALL
+	if (target_peer == 0) { // send to ALL
 		auto returnValue = OK;
-		for (auto E = connections_by_steamId.begin(); E; ++E)
-		{
-			auto errorCode = E->value->send(p_buffer, p_buffer_size, transferMode, channel);
-			if (errorCode != OK)
-			{
+		for (auto E = connections_by_steamId.begin(); E; ++E) {
+			auto packet = new Packet(p_buffer, p_buffer_size, transferMode, channel);
+			auto errorCode = E->value->send(packet);
+			if (errorCode != OK) {
 				DEBUG_DATA_SIGNAL_V("put_packet failed!", errorCode);
 				returnValue = errorCode;
 			}
 		}
 		return returnValue;
-	}
-	else
-	{
-		return get_connection_by_peer(target_peer)->send(p_buffer, p_buffer_size, transferMode, channel);
+	} else {
+		auto packet = new Packet(p_buffer, p_buffer_size, transferMode, channel);
+		return get_connection_by_peer(target_peer)->send(packet);
 	}
 }
 
-int SteamMultiplayerPeer::get_max_packet_size() const
-{
+int SteamMultiplayerPeer::get_max_packet_size() const {
 	return MAX_STEAM_PACKET_SIZE; // from ENet
 }
 
-bool SteamMultiplayerPeer::is_server_relay_supported() const
-{
+bool SteamMultiplayerPeer::is_server_relay_supported() const {
 	return true;
 }
 
-void SteamMultiplayerPeer::set_target_peer(int p_peer_id)
-{
+void SteamMultiplayerPeer::set_target_peer(int p_peer_id) {
 	target_peer = p_peer_id;
 };
 
-int SteamMultiplayerPeer::get_packet_peer() const
-{
+int SteamMultiplayerPeer::get_packet_peer() const {
 	ERR_FAIL_COND_V_MSG(!_is_active(), 1, "The multiplayer instance isn't currently active.");
 	ERR_FAIL_COND_V(incoming_packets.size() == 0, 1);
 
@@ -156,16 +142,15 @@ int SteamMultiplayerPeer::get_packet_peer() const
 	return a == lobby_owner ? 1 : a.GetAccountID();
 }
 
-SteamMultiplayerPeer::TransferMode SteamMultiplayerPeer::get_packet_mode() const
-{
+SteamMultiplayerPeer::TransferMode SteamMultiplayerPeer::get_packet_mode() const {
 	ERR_FAIL_COND_V_MSG(!_is_active(), TRANSFER_MODE_RELIABLE, "The multiplayer instance isn't currently active.");
 	ERR_FAIL_COND_V(incoming_packets.size() == 0, TRANSFER_MODE_RELIABLE);
 
-	return incoming_packets.front()->get()->transfer_mode;
+	// return incoming_packets.front()->get()->transfer_mode;
+	return TRANSFER_MODE_RELIABLE; //steam doesn't know how a packet was sent
 }
 
-int SteamMultiplayerPeer::get_packet_channel() const
-{
+int SteamMultiplayerPeer::get_packet_channel() const {
 	ERR_FAIL_COND_V_MSG(!_is_active(), 1, "The multiplayer instance isn't currently active.");
 	ERR_FAIL_COND_V(incoming_packets.size() == 0, 1);
 	int ch = incoming_packets.front()->get()->channel;
@@ -175,24 +160,20 @@ int SteamMultiplayerPeer::get_packet_channel() const
 	return ch;
 }
 
-void SteamMultiplayerPeer::disconnect_peer(int p_peer, bool p_force)
-{
+void SteamMultiplayerPeer::disconnect_peer(int p_peer, bool p_force) {
 	ERR_PRINT("ERROR:: SteamMultiplayerPeer::disconnect_peer not yet implemented");
 }
 
-bool SteamMultiplayerPeer::is_server() const
-{
+bool SteamMultiplayerPeer::is_server() const {
 	return unique_id == 1;
 }
 
 #define MAX_MESSAGE_COUNT 255
-void SteamMultiplayerPeer::poll()
-{
+void SteamMultiplayerPeer::poll() {
 	{
 		SteamNetworkingMessage_t *messages[MAX_MESSAGE_COUNT];
 		int count = SteamNetworkingMessages()->ReceiveMessagesOnChannel(CHANNEL_MANAGEMENT::SIZE, messages, MAX_MESSAGE_COUNT);
-		for (int i = 0; i < count; i++)
-		{
+		for (int i = 0; i < count; i++) {
 			auto msg = messages[i];
 			process_message(msg);
 			msg->Release();
@@ -200,14 +181,12 @@ void SteamMultiplayerPeer::poll()
 	}
 	{
 		auto a = PingPayload();
-		for (auto E = connections_by_steamId.begin(); E; ++E)
-		{
+		for (auto E = connections_by_steamId.begin(); E; ++E) {
 			auto t = OS::get_singleton()->get_ticks_msec() - MAX_TIME_WITHOUT_MESSAGE; // pretty sure this will wrap. Should I fix this?
 			auto key = E->key;
 			Ref<SteamMultiplayerPeer::ConnectionData> value = E->value;
 
-			if (value->peer_id == -1 || t < value->last_msg_timestamp)
-			{
+			if (value->peer_id == -1 || t < value->last_msg_timestamp) {
 				value->ping(a);
 			}
 		}
@@ -215,8 +194,7 @@ void SteamMultiplayerPeer::poll()
 	{
 		SteamNetworkingMessage_t *messages[MAX_MESSAGE_COUNT];
 		int count = SteamNetworkingMessages()->ReceiveMessagesOnChannel(CHANNEL_MANAGEMENT::PING_CHANNEL, messages, MAX_MESSAGE_COUNT);
-		for (int i = 0; i < count; i++)
-		{
+		for (int i = 0; i < count; i++) {
 			auto msg = messages[i];
 			process_ping(msg);
 			msg->Release();
@@ -224,86 +202,70 @@ void SteamMultiplayerPeer::poll()
 	}
 }
 
-void SteamMultiplayerPeer::process_message(const SteamNetworkingMessage_t *msg)
-{
+void SteamMultiplayerPeer::process_message(const SteamNetworkingMessage_t *msg) {
+	ERR_FAIL_COND_MSG(msg->GetSize() > MAX_STEAM_PACKET_SIZE, "PACKET TOO LARGE!");
+
 	auto packet = new Packet;
 	packet->channel = 0;
 	packet->sender = msg->m_identityPeer.GetSteamID();
 	packet->size = msg->GetSize();
-	ERR_FAIL_COND_MSG(packet->size > MAX_STEAM_PACKET_SIZE, "PACKET TOO LARGE!");
+	packet->transfer_mode = -1;
 	auto rawData = (uint8_t *)msg->GetData();
 	memcpy(packet->data, rawData, packet->size);
 	incoming_packets.push_back(packet);
 }
-void SteamMultiplayerPeer::process_ping(const SteamNetworkingMessage_t *msg)
-{
+void SteamMultiplayerPeer::process_ping(const SteamNetworkingMessage_t *msg) {
 	ERR_FAIL_COND_MSG(sizeof(PingPayload) != msg->GetSize(), "wrong size of payload");
 
 	auto data = (PingPayload *)msg->GetData();
-	if (data->peer_id == -1)
-	{
+	if (data->peer_id == -1) {
 		// respond to ping
 		auto p = PingPayload();
 		p.peer_id = unique_id;
 		p.steam_id = SteamUser()->GetSteamID();
 		auto err = connections_by_steamId[msg->m_identityPeer.GetSteamID64()]->ping(p);
-		if (err != OK)
-		{
+		if (err != OK) {
 			DEBUG_DATA_SIGNAL_V("process_ping: ping failed?", err);
 		}
-	}
-	else
-	{
+	} else {
 		auto connection = connections_by_steamId[data->steam_id.ConvertToUint64()];
-		if (connection->peer_id == -1)
-		{
+		if (connection->peer_id == -1) {
 			set_steam_id_peer(data->steam_id, data->peer_id);
 		}
 		// collect ping data
 	}
 }
 
-void SteamMultiplayerPeer::close()
-{
+void SteamMultiplayerPeer::close() {
 	ERR_PRINT("ERROR:: SteamMultiplayerPeer::close not yet implemented");
 }
 
-int SteamMultiplayerPeer::get_unique_id() const
-{
+int SteamMultiplayerPeer::get_unique_id() const {
 	ERR_FAIL_COND_V_MSG(!_is_active(), 0, "The multiplayer instance isn't currently active.");
 	return unique_id;
 }
 
-SteamMultiplayerPeer::ConnectionStatus SteamMultiplayerPeer::get_connection_status() const
-{
-	if (lobby_state == LOBBY_STATE::NOT_CONNECTED)
-	{
+SteamMultiplayerPeer::ConnectionStatus SteamMultiplayerPeer::get_connection_status() const {
+	if (lobby_state == LOBBY_STATE::NOT_CONNECTED) {
 		return ConnectionStatus::CONNECTION_DISCONNECTED;
-	}
-	else if (lobby_state == LOBBY_STATE::CLIENT || lobby_state == LOBBY_STATE::HOSTING)
-	{
+	} else if (lobby_state == LOBBY_STATE::CLIENT || lobby_state == LOBBY_STATE::HOSTING) {
 		return ConnectionStatus::CONNECTION_CONNECTED;
-	}
-	else
-	{
+	} else {
 		return ConnectionStatus::CONNECTION_CONNECTING;
 	}
 }
 
-int SteamMultiplayerPeer::get_peer_id(CSteamID steamId)
-{
+int SteamMultiplayerPeer::get_peer_id(CSteamID steamId) {
 	ERR_FAIL_COND_V_MSG(steamId_to_peerId.has(steamId.ConvertToUint64()) == false, -1, "STEAMID NOT CONNECTED!");
 	return steamId_to_peerId[steamId.ConvertToUint64()];
 }
 
-CSteamID SteamMultiplayerPeer::get_steam_id(int peer)
-{
+CSteamID SteamMultiplayerPeer::get_steam_id(int peer) {
 	ERR_FAIL_COND_V_MSG(peerId_to_steamId.has(peer) == false, CSteamID(), "PEER DOES NOT EXIST!");
 	return peerId_to_steamId[peer];
 }
 
-void SteamMultiplayerPeer::set_steam_id_peer(CSteamID steamId, int peer_id)
-{
+void SteamMultiplayerPeer::set_steam_id_peer(CSteamID steamId, int peer_id) {
 	ERR_FAIL_COND_MSG(connections_by_steamId.has(steamId.ConvertToUint64()) == false, "STEAMID MISSING!");
 	steamId_to_peerId[steamId.ConvertToUint64()] = peer_id;
 	peerId_to_steamId[peer_id] = steamId;
@@ -311,36 +273,30 @@ void SteamMultiplayerPeer::set_steam_id_peer(CSteamID steamId, int peer_id)
 	emit_signal("peer_connected", peer_id);
 }
 
-Ref<SteamMultiplayerPeer::ConnectionData> SteamMultiplayerPeer::get_connection_by_peer(int peer_id)
-{
+Ref<SteamMultiplayerPeer::ConnectionData> SteamMultiplayerPeer::get_connection_by_peer(int peer_id) {
 	return connections_by_steamId[peerId_to_steamId[peer_id].ConvertToUint64()];
 }
 
-void SteamMultiplayerPeer::add_connection_peer(const CSteamID &steamId, int peer_id)
-{
-	if (steamId == SteamUser()->GetSteamID())
-	{
+void SteamMultiplayerPeer::add_connection_peer(const CSteamID &steamId, int peer_id) {
+	if (steamId == SteamUser()->GetSteamID()) {
 		ERR_PRINT("YOU CANNOT ADD A PEER THAT IS YOU!");
 		return;
 	}
 	Ref<ConnectionData> ccc = Ref<ConnectionData>(memnew(ConnectionData(steamId)));
 	connections_by_steamId[steamId.ConvertToUint64()] = ccc;
 	auto a = ccc->ping();
-	if (a != OK)
-	{
+	if (a != OK) {
 		DEBUG_DATA_SIGNAL_V("add_connection_peer: Error sending ping", a);
 	}
 	ERR_FAIL_COND_MSG(a != OK, "Message failed to join?");
 }
 
-void SteamMultiplayerPeer::add_pending_peer(const CSteamID &steamId)
-{
+void SteamMultiplayerPeer::add_pending_peer(const CSteamID &steamId) {
 	add_connection_peer(steamId, -1);
 	// pending_connections.push_back(steamId);
 }
 
-void SteamMultiplayerPeer::removed_connection_peer(const CSteamID &steamId)
-{
+void SteamMultiplayerPeer::removed_connection_peer(const CSteamID &steamId) {
 	int peerId = get_peer_id(steamId);
 	steamId_to_peerId.erase(steamId.ConvertToUint64());
 	peerId_to_steamId.erase(peerId);
@@ -349,16 +305,14 @@ void SteamMultiplayerPeer::removed_connection_peer(const CSteamID &steamId)
 	connections_by_steamId.erase(steamId.ConvertToUint64());
 }
 
-Error SteamMultiplayerPeer::create_lobby(LOBBY_TYPE lobby_type, int max_players)
-{
+Error SteamMultiplayerPeer::create_lobby(LOBBY_TYPE lobby_type, int max_players) {
 	ERR_FAIL_COND_V_MSG(lobby_state != LOBBY_STATE::NOT_CONNECTED, ERR_ALREADY_IN_USE, "CANNOT CREATE A LOBBY WHILE IN A LOBBY!");
 	ERR_FAIL_COND_V_MSG(SteamMatchmaking() == NULL, ERR_DOES_NOT_EXIST, "`SteamMatchmaking()` is null.");
 
 	this->steam_id == Steam::get_singleton()->getSteamID();
 
-	
 	JSON json;
-	auto a = json.stringify(steamIdToDict(steam_id))
+	auto a = json.stringify(steamIdToDict(steam_id));
 	print_error(a);
 
 	SteamAPICall_t api_call = SteamMatchmaking()->CreateLobby((ELobbyType)lobby_type, max_players);
@@ -368,16 +322,12 @@ Error SteamMultiplayerPeer::create_lobby(LOBBY_TYPE lobby_type, int max_players)
 	return OK;
 }
 
-void SteamMultiplayerPeer::lobby_created(LobbyCreated_t *lobby_data, bool io_failure)
-{
-	if (io_failure)
-	{
+void SteamMultiplayerPeer::lobby_created(LobbyCreated_t *lobby_data, bool io_failure) {
+	if (io_failure) {
 		lobby_state = LOBBY_STATE::NOT_CONNECTED;
 		ERR_FAIL_MSG("lobby_created failed? idk wtf is happening");
 		// steamworksError("lobby_created");
-	}
-	else
-	{
+	} else {
 		lobby_state = LOBBY_STATE::HOSTING;
 		int connect = lobby_data->m_eResult;
 		lobby_id = lobby_data->m_ulSteamIDLobby;
@@ -386,19 +336,17 @@ void SteamMultiplayerPeer::lobby_created(LobbyCreated_t *lobby_data, bool io_fai
 	}
 }
 
-Error SteamMultiplayerPeer::join_lobby(uint64 lobbyId)
-{
+Error SteamMultiplayerPeer::join_lobby(uint64 lobbyId) {
 	ERR_FAIL_COND_V_MSG(lobby_state != LOBBY_STATE::NOT_CONNECTED, ERR_ALREADY_IN_USE, "CANNOT JOIN A LOBBY WHILE IN A LOBBY!");
 
 	this->steam_id == Steam::get_singleton()->getSteamID();
 
 	JSON json;
-	auto a = json.stringify(steamIdToDict(steam_id))
+	auto a = json.stringify(steamIdToDict(steam_id));
 	print_error(a);
 	// ERR_PRINT();
 
-	if (SteamMatchmaking() != NULL)
-	{
+	if (SteamMatchmaking() != NULL) {
 		lobby_state = LOBBY_STATE::CLIENT_PENDING;
 		this->lobby_id = lobbyId;
 		unique_id = SteamUser()->GetSteamID().GetAccountID();
@@ -408,18 +356,15 @@ Error SteamMultiplayerPeer::join_lobby(uint64 lobbyId)
 	return OK;
 }
 
-void SteamMultiplayerPeer::lobby_message_scb(LobbyChatMsg_t *call_data)
-{
-	if (lobby_id != call_data->m_ulSteamIDLobby)
-	{
+void SteamMultiplayerPeer::lobby_message_scb(LobbyChatMsg_t *call_data) {
+	if (lobby_id != call_data->m_ulSteamIDLobby) {
 		DEBUG_DATA_SIGNAL("lobby_message_scb: recived message on that isn't for this lobby?");
 		return;
 	}
 	Packet *packet = new Packet;
 
 	packet->sender = call_data->m_ulSteamIDUser;
-	if (SteamUser()->GetSteamID() == packet->sender)
-	{
+	if (SteamUser()->GetSteamID() == packet->sender) {
 		return;
 	}
 	uint8 chat_type = call_data->m_eChatEntryType;
@@ -432,45 +377,37 @@ void SteamMultiplayerPeer::lobby_message_scb(LobbyChatMsg_t *call_data)
 	incoming_packets.push_back(packet);
 };
 
-void SteamMultiplayerPeer::lobby_chat_update_scb(LobbyChatUpdate_t *call_data)
-{
-	if (lobby_id != call_data->m_ulSteamIDLobby)
-	{
+void SteamMultiplayerPeer::lobby_chat_update_scb(LobbyChatUpdate_t *call_data) {
+	if (lobby_id != call_data->m_ulSteamIDLobby) {
 		return;
 	}
 	CSteamID userChanged = CSteamID(call_data->m_ulSteamIDUserChanged);
-	switch (CHAT_CHANGE(call_data->m_rgfChatMemberStateChange))
-	{
-	case CHAT_CHANGE::ENTERED:
-		if (userChanged != SteamUser()->GetSteamID())
-		{
-			add_pending_peer(userChanged);
-		}
-		break;
-	case CHAT_CHANGE::LEFT:
-	case CHAT_CHANGE::DISCONNECTED:
-	case CHAT_CHANGE::KICKED:
-	case CHAT_CHANGE::BANNED:
-		if (userChanged != SteamUser()->GetSteamID())
-		{
-			removed_connection_peer(userChanged);
-		}
-		// todo emit signal based on what happened to that user!
-		break;
-	default:
-		ERR_PRINT("WTF!?");
+	switch (CHAT_CHANGE(call_data->m_rgfChatMemberStateChange)) {
+		case CHAT_CHANGE::ENTERED:
+			if (userChanged != SteamUser()->GetSteamID()) {
+				add_pending_peer(userChanged);
+			}
+			break;
+		case CHAT_CHANGE::LEFT:
+		case CHAT_CHANGE::DISCONNECTED:
+		case CHAT_CHANGE::KICKED:
+		case CHAT_CHANGE::BANNED:
+			if (userChanged != SteamUser()->GetSteamID()) {
+				removed_connection_peer(userChanged);
+			}
+			// todo emit signal based on what happened to that user!
+			break;
+		default:
+			ERR_PRINT("WTF!?");
 	}
 };
 
-void SteamMultiplayerPeer::network_messages_session_request_scb(SteamNetworkingMessagesSessionRequest_t *t)
-{
+void SteamMultiplayerPeer::network_messages_session_request_scb(SteamNetworkingMessagesSessionRequest_t *t) {
 	// search for lobby member
 	CSteamID requester = t->m_identityRemote.GetSteamID();
 	int currentLobbySize = SteamMatchmaking()->GetNumLobbyMembers(lobby_id);
-	for (int i = 0; i < currentLobbySize; i++)
-	{
-		if (SteamMatchmaking()->GetLobbyMemberByIndex(lobby_id, i) == requester)
-		{
+	for (int i = 0; i < currentLobbySize; i++) {
+		if (SteamMatchmaking()->GetLobbyMemberByIndex(lobby_id, i) == requester) {
 			bool didWork = SteamNetworkingMessages()->AcceptSessionWithUser(t->m_identityRemote);
 			ERR_FAIL_COND_MSG(didWork, "Message failed to join?");
 			return;
@@ -479,83 +416,71 @@ void SteamMultiplayerPeer::network_messages_session_request_scb(SteamNetworkingM
 	ERR_PRINT(String("CONNECTION ATTEMPTED BY PLAYER NOT IN LOBBY!:") + String::num_uint64(requester.GetAccountID()));
 };
 
-void SteamMultiplayerPeer::network_messages_session_failed_scb(SteamNetworkingMessagesSessionFailed_t *call_data)
-{
+void SteamMultiplayerPeer::network_messages_session_failed_scb(SteamNetworkingMessagesSessionFailed_t *call_data) {
 	SteamNetConnectionInfo_t info = call_data->m_info;
 	// Parse out the reason for failure
 	DEBUG_DATA_SIGNAL_V("network_messages_session_failed_scb", info.m_eEndReason);
 	// emit_signal("network_messages_session_failed", reason);
 }
 
-void SteamMultiplayerPeer::lobby_joined_scb(LobbyEnter_t *lobbyData)
-{
+void SteamMultiplayerPeer::lobby_joined_scb(LobbyEnter_t *lobbyData) {
 	ERR_FAIL_COND_MSG(lobbyData->m_ulSteamIDLobby != this->lobby_id.ConvertToUint64(), "joined a lobby that isn't THIS lobby? this is probably an error? weird");
 
-	if (lobbyData->m_EChatRoomEnterResponse == k_EChatRoomEnterResponseSuccess)
-	{
+	if (lobbyData->m_EChatRoomEnterResponse == k_EChatRoomEnterResponseSuccess) {
 		auto sm = SteamMatchmaking();
 		lobby_owner = sm->GetLobbyOwner(lobby_id);
-		if (unique_id == 1)
-		{
+		if (unique_id == 1) {
 			// don't do stuff if you're already the host
-		}
-		else
-		{
+		} else {
 			lobby_state = LOBBY_STATE::CLIENT;
 			add_pending_peer(lobby_owner);
 		}
 		int count = sm->GetNumLobbyMembers(lobby_id);
-		for (int i = 0; i < count; i++)
-		{
+		for (int i = 0; i < count; i++) {
 			CSteamID member = sm->GetLobbyMemberByIndex(lobby_id, i);
-			if (member != this->steam_id)
-			{ // lobby owner was added above. should happen FIRST
+			if (member != this->steam_id) { // lobby owner was added above. should happen FIRST
 				add_pending_peer(member);
 			}
 		}
-	}
-	else
-	{
+	} else {
 		String output = "";
-		switch (lobbyData->m_EChatRoomEnterResponse)
-		{
-		// k_EChatRoomEnterResponseSuccess: 			output = "k_EChatRoomEnterResponseSuccess"; break;
-		case k_EChatRoomEnterResponseDoesntExist:
-			output = "Doesn't Exist";
-			break;
-		case k_EChatRoomEnterResponseNotAllowed:
-			output = "Not Allowed";
-			break;
-		case k_EChatRoomEnterResponseFull:
-			output = "Full";
-			break;
-		case k_EChatRoomEnterResponseError:
-			output = "Error";
-			break;
-		case k_EChatRoomEnterResponseBanned:
-			output = "Banned";
-			break;
-		case k_EChatRoomEnterResponseLimited:
-			output = "Limited";
-			break;
-		case k_EChatRoomEnterResponseClanDisabled:
-			output = "Clan Disabled";
-			break;
-		case k_EChatRoomEnterResponseCommunityBan:
-			output = "Community Ban";
-			break;
-		case k_EChatRoomEnterResponseMemberBlockedYou:
-			output = "Member Blocked You";
-			break;
-		case k_EChatRoomEnterResponseYouBlockedMember:
-			output = "You Blocked Member";
-			break;
-		case k_EChatRoomEnterResponseRatelimitExceeded:
-			output = "Ratelimit Exceeded";
-			break;
+		switch (lobbyData->m_EChatRoomEnterResponse) {
+			// k_EChatRoomEnterResponseSuccess: 			output = "k_EChatRoomEnterResponseSuccess"; break;
+			case k_EChatRoomEnterResponseDoesntExist:
+				output = "Doesn't Exist";
+				break;
+			case k_EChatRoomEnterResponseNotAllowed:
+				output = "Not Allowed";
+				break;
+			case k_EChatRoomEnterResponseFull:
+				output = "Full";
+				break;
+			case k_EChatRoomEnterResponseError:
+				output = "Error";
+				break;
+			case k_EChatRoomEnterResponseBanned:
+				output = "Banned";
+				break;
+			case k_EChatRoomEnterResponseLimited:
+				output = "Limited";
+				break;
+			case k_EChatRoomEnterResponseClanDisabled:
+				output = "Clan Disabled";
+				break;
+			case k_EChatRoomEnterResponseCommunityBan:
+				output = "Community Ban";
+				break;
+			case k_EChatRoomEnterResponseMemberBlockedYou:
+				output = "Member Blocked You";
+				break;
+			case k_EChatRoomEnterResponseYouBlockedMember:
+				output = "You Blocked Member";
+				break;
+			case k_EChatRoomEnterResponseRatelimitExceeded:
+				output = "Ratelimit Exceeded";
+				break;
 		};
-		if (output.length() != 0)
-		{
+		if (output.length() != 0) {
 			ERR_PRINT("Joined lobby failed!" + output);
 			lobby_state = LOBBY_STATE::NOT_CONNECTED;
 			DEBUG_DATA_SIGNAL_V(output, lobbyData->m_EChatRoomEnterResponse);
@@ -564,12 +489,275 @@ void SteamMultiplayerPeer::lobby_joined_scb(LobbyEnter_t *lobbyData)
 	}
 }
 
-Dictionary steamIdToDict(CSteamID input)
-{
+Dictionary steamIdToDict(CSteamID input) {
 	auto output = Dictionary();
 	output["GetAccountID"] = input.GetAccountID();
 	output["GetUnAccountInstance"] = input.GetUnAccountInstance();
 	output["GetEAccountType"] = input.GetEAccountType();
 	output["GetEUniverse"] = input.GetEUniverse();
 	return output;
+}
+
+String SteamMultiplayerPeer::convertEResultToString(EResult e) {
+	switch(e) {
+	case k_EResultNone:
+		return String("k_EResultNone");
+	case k_EResultOK:
+		return String("k_EResultOK");
+	case k_EResultFail:
+		return String("k_EResultFail");
+	case k_EResultNoConnection:
+		return String("k_EResultNoConnection");
+	case k_EResultInvalidPassword:
+		return String("k_EResultInvalidPassword");
+	case k_EResultLoggedInElsewhere:
+		return String("k_EResultLoggedInElsewhere");
+	case k_EResultInvalidProtocolVer:
+		return String("k_EResultInvalidProtocolVer");
+	case k_EResultInvalidParam:
+		return String("k_EResultInvalidParam");
+	case k_EResultFileNotFound:
+		return String("k_EResultFileNotFound");
+	case k_EResultBusy:
+		return String("k_EResultBusy");
+	case k_EResultInvalidState:
+		return String("k_EResultInvalidState");
+	case k_EResultInvalidName:
+		return String("k_EResultInvalidName");
+	case k_EResultInvalidEmail:
+		return String("k_EResultInvalidEmail");
+	case k_EResultDuplicateName:
+		return String("k_EResultDuplicateName");
+	case k_EResultAccessDenied:
+		return String("k_EResultAccessDenied");
+	case k_EResultTimeout:
+		return String("k_EResultTimeout");
+	case k_EResultBanned:
+		return String("k_EResultBanned");
+	case k_EResultAccountNotFound:
+		return String("k_EResultAccountNotFound");
+	case k_EResultInvalidSteamID:
+		return String("k_EResultInvalidSteamID");
+	case k_EResultServiceUnavailable:
+		return String("k_EResultServiceUnavailable");
+	case k_EResultNotLoggedOn:
+		return String("k_EResultNotLoggedOn");
+	case k_EResultPending:
+		return String("k_EResultPending");
+	case k_EResultEncryptionFailure:
+		return String("k_EResultEncryptionFailure");
+	case k_EResultInsufficientPrivilege:
+		return String("k_EResultInsufficientPrivilege");
+	case k_EResultLimitExceeded:
+		return String("k_EResultLimitExceeded");
+	case k_EResultRevoked:
+		return String("k_EResultRevoked");
+	case k_EResultExpired:
+		return String("k_EResultExpired");
+	case k_EResultAlreadyRedeemed:
+		return String("k_EResultAlreadyRedeemed");
+	case k_EResultDuplicateRequest:
+		return String("k_EResultDuplicateRequest");
+	case k_EResultAlreadyOwned:
+		return String("k_EResultAlreadyOwned");
+	case k_EResultIPNotFound:
+		return String("k_EResultIPNotFound");
+	case k_EResultPersistFailed:
+		return String("k_EResultPersistFailed");
+	case k_EResultLockingFailed:
+		return String("k_EResultLockingFailed");
+	case k_EResultLogonSessionReplaced:
+		return String("k_EResultLogonSessionReplaced");
+	case k_EResultConnectFailed:
+		return String("k_EResultConnectFailed");
+	case k_EResultHandshakeFailed:
+		return String("k_EResultHandshakeFailed");
+	case k_EResultIOFailure:
+		return String("k_EResultIOFailure");
+	case k_EResultRemoteDisconnect:
+		return String("k_EResultRemoteDisconnect");
+	case k_EResultShoppingCartNotFound:
+		return String("k_EResultShoppingCartNotFound");
+	case k_EResultBlocked:
+		return String("k_EResultBlocked");
+	case k_EResultIgnored:
+		return String("k_EResultIgnored");
+	case k_EResultNoMatch:
+		return String("k_EResultNoMatch");
+	case k_EResultAccountDisabled:
+		return String("k_EResultAccountDisabled");
+	case k_EResultServiceReadOnly:
+		return String("k_EResultServiceReadOnly");
+	case k_EResultAccountNotFeatured:
+		return String("k_EResultAccountNotFeatured");
+	case k_EResultAdministratorOK:
+		return String("k_EResultAdministratorOK");
+	case k_EResultContentVersion:
+		return String("k_EResultContentVersion");
+	case k_EResultTryAnotherCM:
+		return String("k_EResultTryAnotherCM");
+	case k_EResultPasswordRequiredToKickSession:
+		return String("k_EResultPasswordRequiredToKickSession");
+	case k_EResultAlreadyLoggedInElsewhere:
+		return String("k_EResultAlreadyLoggedInElsewhere");
+	case k_EResultSuspended:
+		return String("k_EResultSuspended");
+	case k_EResultCancelled:
+		return String("k_EResultCancelled");
+	case k_EResultDataCorruption:
+		return String("k_EResultDataCorruption");
+	case k_EResultDiskFull:
+		return String("k_EResultDiskFull");
+	case k_EResultRemoteCallFailed:
+		return String("k_EResultRemoteCallFailed");
+	case k_EResultPasswordUnset:
+		return String("k_EResultPasswordUnset");
+	case k_EResultExternalAccountUnlinked:
+		return String("k_EResultExternalAccountUnlinked");
+	case k_EResultPSNTicketInvalid:
+		return String("k_EResultPSNTicketInvalid");
+	case k_EResultExternalAccountAlreadyLinked:
+		return String("k_EResultExternalAccountAlreadyLinked");
+	case k_EResultRemoteFileConflict:
+		return String("k_EResultRemoteFileConflict");
+	case k_EResultIllegalPassword:
+		return String("k_EResultIllegalPassword");
+	case k_EResultSameAsPreviousValue:
+		return String("k_EResultSameAsPreviousValue");
+	case k_EResultAccountLogonDenied:
+		return String("k_EResultAccountLogonDenied");
+	case k_EResultCannotUseOldPassword:
+		return String("k_EResultCannotUseOldPassword");
+	case k_EResultInvalidLoginAuthCode:
+		return String("k_EResultInvalidLoginAuthCode");
+	case k_EResultAccountLogonDeniedNoMail:
+		return String("k_EResultAccountLogonDeniedNoMail");
+	case k_EResultHardwareNotCapableOfIPT:
+		return String("k_EResultHardwareNotCapableOfIPT");
+	case k_EResultIPTInitError:
+		return String("k_EResultIPTInitError");
+	case k_EResultParentalControlRestricted:
+		return String("k_EResultParentalControlRestricted");
+	case k_EResultFacebookQueryError:
+		return String("k_EResultFacebookQueryError");
+	case k_EResultExpiredLoginAuthCode:
+		return String("k_EResultExpiredLoginAuthCode");
+	case k_EResultIPLoginRestrictionFailed:
+		return String("k_EResultIPLoginRestrictionFailed");
+	case k_EResultAccountLockedDown:
+		return String("k_EResultAccountLockedDown");
+	case k_EResultAccountLogonDeniedVerifiedEmailRequired:
+		return String("k_EResultAccountLogonDeniedVerifiedEmailRequired");
+	case k_EResultNoMatchingURL:
+		return String("k_EResultNoMatchingURL");
+	case k_EResultBadResponse:
+		return String("k_EResultBadResponse");
+	case k_EResultRequirePasswordReEntry:
+		return String("k_EResultRequirePasswordReEntry");
+	case k_EResultValueOutOfRange:
+		return String("k_EResultValueOutOfRange");
+	case k_EResultUnexpectedError:
+		return String("k_EResultUnexpectedError");
+	case k_EResultDisabled:
+		return String("k_EResultDisabled");
+	case k_EResultInvalidCEGSubmission:
+		return String("k_EResultInvalidCEGSubmission");
+	case k_EResultRestrictedDevice:
+		return String("k_EResultRestrictedDevice");
+	case k_EResultRegionLocked:
+		return String("k_EResultRegionLocked");
+	case k_EResultRateLimitExceeded:
+		return String("k_EResultRateLimitExceeded");
+	case k_EResultAccountLoginDeniedNeedTwoFactor:
+		return String("k_EResultAccountLoginDeniedNeedTwoFactor");
+	case k_EResultItemDeleted:
+		return String("k_EResultItemDeleted");
+	case k_EResultAccountLoginDeniedThrottle:
+		return String("k_EResultAccountLoginDeniedThrottle");
+	case k_EResultTwoFactorCodeMismatch:
+		return String("k_EResultTwoFactorCodeMismatch");
+	case k_EResultTwoFactorActivationCodeMismatch:
+		return String("k_EResultTwoFactorActivationCodeMismatch");
+	case k_EResultAccountAssociatedToMultiplePartners:
+		return String("k_EResultAccountAssociatedToMultiplePartners");
+	case k_EResultNotModified:
+		return String("k_EResultNotModified");
+	case k_EResultNoMobileDevice:
+		return String("k_EResultNoMobileDevice");
+	case k_EResultTimeNotSynced:
+		return String("k_EResultTimeNotSynced");
+	case k_EResultSmsCodeFailed:
+		return String("k_EResultSmsCodeFailed");
+	case k_EResultAccountLimitExceeded:
+		return String("k_EResultAccountLimitExceeded");
+	case k_EResultAccountActivityLimitExceeded:
+		return String("k_EResultAccountActivityLimitExceeded");
+	case k_EResultPhoneActivityLimitExceeded:
+		return String("k_EResultPhoneActivityLimitExceeded");
+	case k_EResultRefundToWallet:
+		return String("k_EResultRefundToWallet");
+	case k_EResultEmailSendFailure:
+		return String("k_EResultEmailSendFailure");
+	case k_EResultNotSettled:
+		return String("k_EResultNotSettled");
+	case k_EResultNeedCaptcha:
+		return String("k_EResultNeedCaptcha");
+	case k_EResultGSLTDenied:
+		return String("k_EResultGSLTDenied");
+	case k_EResultGSOwnerDenied:
+		return String("k_EResultGSOwnerDenied");
+	case k_EResultInvalidItemType:
+		return String("k_EResultInvalidItemType");
+	case k_EResultIPBanned:
+		return String("k_EResultIPBanned");
+	case k_EResultGSLTExpired:
+		return String("k_EResultGSLTExpired");
+	case k_EResultInsufficientFunds:
+		return String("k_EResultInsufficientFunds");
+	case k_EResultTooManyPending:
+		return String("k_EResultTooManyPending");
+	case k_EResultNoSiteLicensesFound:
+		return String("k_EResultNoSiteLicensesFound");
+	case k_EResultWGNetworkSendExceeded:
+		return String("k_EResultWGNetworkSendExceeded");
+	case k_EResultAccountNotFriends:
+		return String("k_EResultAccountNotFriends");
+	case k_EResultLimitedUserAccount:
+		return String("k_EResultLimitedUserAccount");
+	case k_EResultCantRemoveItem:
+		return String("k_EResultCantRemoveItem");
+	case k_EResultAccountDeleted:
+		return String("k_EResultAccountDeleted");
+	case k_EResultExistingUserCancelledLicense:
+		return String("k_EResultExistingUserCancelledLicense");
+	case k_EResultCommunityCooldown:
+		return String("k_EResultCommunityCooldown");
+	case k_EResultNoLauncherSpecified:
+		return String("k_EResultNoLauncherSpecified");
+	case k_EResultMustAgreeToSSA:
+		return String("k_EResultMustAgreeToSSA");
+	case k_EResultLauncherMigrated:
+		return String("k_EResultLauncherMigrated");
+	case k_EResultSteamRealmMismatch:
+		return String("k_EResultSteamRealmMismatch");
+	case k_EResultInvalidSignature:
+		return String("k_EResultInvalidSignature");
+	case k_EResultParseFailure:
+		return String("k_EResultParseFailure");
+	case k_EResultNoVerifiedPhone:
+		return String("k_EResultNoVerifiedPhone");
+	case k_EResultInsufficientBattery:
+		return String("k_EResultInsufficientBattery");
+	case k_EResultChargerRequired:
+		return String("k_EResultChargerRequired");
+	case k_EResultCachedCredentialInvalid:
+		return String("k_EResultCachedCredentialInvalid");
+	case K_EResultPhoneNumberIsVOIP:
+		return String("K_EResultPhoneNumberIsVOIP");
+	}
+	return String("unmatched");
+}
+
+Dictionary SteamMultiplayerPeer::get_peer_info(int i) {
+	return this->connections_by_steamId[peerId_to_steamId[i].ConvertToUint64()]->getData();
 }

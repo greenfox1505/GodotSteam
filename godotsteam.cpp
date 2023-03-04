@@ -3377,7 +3377,7 @@ int32 Steam::exchangeItems(const PackedInt64Array output_items, const uint32 out
 	if (SteamInventory() != NULL)
 	{
 		SteamItemDef_t *generated = new SteamItemDef_t[output_quantity];
-		for (int i = 0; i < output_quantity; i++)
+		for (uint32 i = 0; i < output_quantity; i++)
 		{
 			generated[i] = output_items[i];
 		}
@@ -3398,7 +3398,7 @@ int32 Steam::generateItems(const PackedInt64Array items, const uint32 quantity)
 	if (SteamInventory() != NULL)
 	{
 		SteamItemDef_t *generated = new SteamItemDef_t[quantity];
-		for (int i = 0; i < quantity; i++)
+		for (uint32 i = 0; i < quantity; i++)
 		{
 			generated[i] = items[i];
 		}
@@ -3696,7 +3696,7 @@ void Steam::startPurchase(const PackedInt64Array items, const uint32 quantity)
 	if (SteamInventory() != NULL)
 	{
 		SteamItemDef_t *purchases = new SteamItemDef_t[quantity];
-		for (int i = 0; i < quantity; i++)
+		for (uint32 i = 0; i < quantity; i++)
 		{
 			purchases[i] = items[i];
 		}

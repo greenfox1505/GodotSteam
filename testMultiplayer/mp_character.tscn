@@ -49,25 +49,68 @@ func _physics_process(delta):
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_m1u1p"]
 size = Vector2(16, 16)
 
-[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_txcdj"]
-properties/0/path = NodePath(".:interPos")
-properties/0/spawn = true
-properties/0/sync = true
-
 [sub_resource type="GDScript" id="GDScript_o4mph"]
 script/source = "extends Node
 
-#@export var position:Transform2D: set(value):
-#
-#
-#
-#func _process(delta):
-#	pass
-#
-#func set_pos(value):
-#	position = value
-#
+@export var position:Vector2: set = set_pos
+var lastPos:Vector2
+var lastPosTime:int = 0
+
+
+var debugData = {};
+
+
+func _ready():
+	position = get_parent().position
+	lastPos = position
+
+func _process(delta):
+	rebuildLabel()
+
+func _physics_process(delta):
+	if is_multiplayer_authority():
+		position = get_parent().position
+	else:
+		lerper()
+
+
+func lerper():
+	if $MultiplayerSynchronizer.replication_interval != 0:
+		var deltaT = (Time.get_ticks_msec() - lastPosTime) / 1000.0
+		var lerpValue = deltaT / $MultiplayerSynchronizer.replication_interval
+		var p = ((position - lastPos) * lerpValue) + lastPos
+		var dt = p - get_parent().position
+		var deltaTransform = {
+			lerpValue = lerpValue,
+			position = position,
+			lastPos = lastPos,
+		}
+		debugData.frame = {deltaTransform=deltaTransform,deltaT = deltaT,p = p,dt = dt }
+		get_parent().position = p
+	else:
+		get_parent().position = position
+
+func rebuildLabel():
+	$\"../Label\".text = JSON.stringify(debugData,\" \")
+
+func set_pos(value):
+	if is_multiplayer_authority():
+		position = value
+		return
+	if lastPosTime == Time.get_ticks_msec():
+		return # this was requried becaus set_pos was being hit multipule times in one frame
+	print(\"deltaTms: \", Time.get_ticks_msec() - lastPosTime)
+	lastPosTime = Time.get_ticks_msec()
+	lastPos = position
+	position = value
+	debugData.setter = {dt = position - lastPos ,lastPosTime=lastPosTime}
+	pass
 "
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_txcdj"]
+properties/0/path = NodePath("transformLerper:position")
+properties/0/spawn = true
+properties/0/sync = true
 
 [node name="MPCharacter" type="CharacterBody2D"]
 position = Vector2(264, 512)
@@ -80,9 +123,18 @@ texture = ExtResource("1_tdo4x")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_m1u1p")
 
-[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+[node name="transformLerper" type="Node" parent="."]
+script = SubResource("GDScript_o4mph")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="transformLerper"]
+root_path = NodePath("../..")
 replication_interval = 0.05
 replication_config = SubResource("SceneReplicationConfig_txcdj")
 
-[node name="positionLerper" type="Node" parent="."]
-script = SubResource("GDScript_o4mph")
+[node name="Label" type="Label" parent="."]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -23.0
+offset_right = 40.0
+grow_vertical = 0

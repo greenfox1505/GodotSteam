@@ -400,7 +400,6 @@ script = SubResource("GDScript_yp1g5")
 
 [node name="enet" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer"]
 unique_name_in_owner = true
-visible = false
 layout_mode = 2
 alignment = 1
 script = SubResource("GDScript_v4g54")

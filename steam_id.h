@@ -4,15 +4,15 @@
 #include "core/os/os.h"
 #include "godotsteam.h"
 
-
 class SteamID : public RefCounted
 {
 	GDCLASS(SteamID, RefCounted);
 
-
 	CSteamID data;
+
 public:
-	void setData(CSteamID value){
+	void setData(CSteamID value)
+	{
 		data = value;
 	}
 	uint64 to_int()
@@ -58,4 +58,4 @@ public:
 	static void _bind_methods();
 };
 
-#endif //STEAM_ID
+#endif // STEAM_ID
