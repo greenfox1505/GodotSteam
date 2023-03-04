@@ -4,30 +4,25 @@
 #include "core/os/os.h"
 #include "godotsteam.h"
 
-class SteamID : public RefCounted
-{
+class SteamID : public RefCounted {
 	GDCLASS(SteamID, RefCounted);
 
 	CSteamID data;
 
 public:
-	void setData(CSteamID value)
-	{
+	void setData(CSteamID value) {
 		data = value;
 	}
-	uint64 to_int()
-	{
+	uint64 to_int() {
 		return data.ConvertToUint64();
 	}
-	void from_int(uint64 i)
-	{
+	void from_int(uint64 i) {
 		data.SetFromUint64(i);
 	}
 	uint32 get_account_id() { return data.GetAccountID(); }
 	uint32 get_un_account_instance() { return data.GetUnAccountInstance(); }
 
-	enum AccountType
-	{
+	enum AccountType {
 		ACCOUNT_TYPE_INVALID = k_EAccountTypeInvalid,
 		ACCOUNT_TYPE_INDIVIDUAL = k_EAccountTypeIndividual,
 		ACCOUNT_TYPE_MULTISEAT = k_EAccountTypeMultiseat,
@@ -42,8 +37,7 @@ public:
 	};
 	AccountType get_account_type() { return AccountType(data.GetEAccountType()); }
 
-	enum Universe
-	{
+	enum Universe {
 		UNIVERSE_INVALID = k_EUniverseInvalid,
 		UNIVERSE_PUBLIC = k_EUniversePublic,
 		UNIVERSE_BETA = k_EUniverseBeta,

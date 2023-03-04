@@ -142,6 +142,10 @@ public:
 		ConnectionData(){};
 		~ConnectionData() {
 			SteamNetworkingMessages()->CloseSessionWithUser(networkIdentity);
+			while (pending_retry_packets.size()) {
+				delete pending_retry_packets.front()->get();
+				pending_retry_packets.pop_front();
+			}
 		}
 		bool operator==(const ConnectionData &data) {
 			return steam_id == data.steam_id;
@@ -256,8 +260,6 @@ public:
 	void process_message(const SteamNetworkingMessage_t *msg);
 	void process_ping(const SteamNetworkingMessage_t *msg);
 	// void poll_channel(int nLocalChannel, void (*func)(SteamNetworkingMessage_t));
-
-
 
 	Dictionary collect_debug_data() {
 		auto output = Dictionary();

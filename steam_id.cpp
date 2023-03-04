@@ -1,12 +1,9 @@
 #include "steam_id.h"
 
-
-
 VARIANT_ENUM_CAST(SteamID::AccountType);
 VARIANT_ENUM_CAST(SteamID::Universe);
 
-void SteamID::_bind_methods()
-{
+void SteamID::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("to_int"), &SteamID::to_int);
 	ClassDB::bind_method(D_METHOD("from_int", "id"), &SteamID::from_int);
 
