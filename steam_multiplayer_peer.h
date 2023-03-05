@@ -22,6 +22,7 @@ public:
 	Dictionary get_peer_info(int i);
 
 public:
+
 	// Matchmaking call results ///////////// stolen
 	CCallResult<SteamMultiplayerPeer, LobbyCreated_t> callResultCreateLobby;
 	void lobby_created_scb(LobbyCreated_t *call_data, bool io_failure);
@@ -33,6 +34,7 @@ public:
 	CSteamID steam_id = CSteamID();
 
 	SteamMultiplayerPeer();
+	~SteamMultiplayerPeer();
 	uint64 get_lobby_id();
 
 	static void _bind_methods();
@@ -68,28 +70,28 @@ public:
 	};
 
 	enum LOBBY_TYPE {
-		PRIVATE = ELobbyType::k_ELobbyTypePrivate,
-		FRIENDS_ONLY = ELobbyType::k_ELobbyTypeFriendsOnly,
-		PUBLIC = ELobbyType::k_ELobbyTypePublic,
-		INVISIBLE = ELobbyType::k_ELobbyTypeInvisible,
+		LOBBY_TYPE_PRIVATE = ELobbyType::k_ELobbyTypePrivate,
+		LOBBY_TYPE_FRIENDS_ONLY = ELobbyType::k_ELobbyTypeFriendsOnly,
+		LOBBY_TYPE_PUBLIC = ELobbyType::k_ELobbyTypePublic,
+		LOBBY_TYPE_INVISIBLE = ELobbyType::k_ELobbyTypeInvisible,
 		// PRIVATE_UNIQUE = ELobbyType::k_ELobbyTypePrivateUnique, //this type must be created from Steam's web api.
 	};
 
 	enum CHAT_CHANGE {
-		ENTERED = k_EChatMemberStateChangeEntered,
-		LEFT = k_EChatMemberStateChangeLeft,
-		DISCONNECTED = k_EChatMemberStateChangeDisconnected,
-		KICKED = k_EChatMemberStateChangeKicked,
-		BANNED = k_EChatMemberStateChangeBanned
+		CHAT_CHANGE_ENTERED = k_EChatMemberStateChangeEntered,
+		CHAT_CHANGE_LEFT = k_EChatMemberStateChangeLeft,
+		CHAT_CHANGE_DISCONNECTED = k_EChatMemberStateChangeDisconnected,
+		CHAT_CHANGE_KICKED = k_EChatMemberStateChangeKicked,
+		CHAT_CHANGE_BANNED = k_EChatMemberStateChangeBanned
 	};
 
 	enum LOBBY_STATE {
-		NOT_CONNECTED,
-		HOST_PENDING,
-		HOSTING,
-		CLIENT_PENDING,
-		CLIENT
-	} lobby_state = LOBBY_STATE::NOT_CONNECTED;
+		LOBBY_STATE_NOT_CONNECTED,
+		LOBBY_STATE_HOST_PENDING,
+		LOBBY_STATE_HOSTING,
+		LOBBY_STATE_CLIENT_PENDING,
+		LOBBY_STATE_CLIENT
+	} lobby_state = LOBBY_STATE::LOBBY_STATE_NOT_CONNECTED;
 	LOBBY_STATE get_state() { return lobby_state; }
 
 	bool no_nagle = false;
@@ -109,18 +111,18 @@ public:
 		Packet() {}
 		Packet(const void *p_buffer, uint32 p_buffer_size, int transferMode, int channel) {
 			ERR_FAIL_COND_MSG(p_buffer_size > MAX_STEAM_PACKET_SIZE, "ERROR TRIED TO SEND A PACKET LARGER THAN MAX_STEAM_PACKET_SIZE");
-			memcpy(data, p_buffer, p_buffer_size);
-			size = p_buffer_size;
-			sender = CSteamID();
-			channel = channel;
-			transfer_mode = transferMode;
+			memcpy(this->data, p_buffer, p_buffer_size);
+			this->size = p_buffer_size;
+			this->sender = CSteamID();
+			this->channel = channel;
+			this->transfer_mode = transferMode;
 		}
 	};
 	Packet *next_send_packet = new Packet;
 	Packet *next_received_packet = new Packet; // this packet gets deleted at the first get_packet request
 	List<Packet *> incoming_packets;
 
-	_FORCE_INLINE_ bool _is_active() const { return lobby_state != LOBBY_STATE::NOT_CONNECTED; }
+	_FORCE_INLINE_ bool _is_active() const { return lobby_state != LOBBY_STATE::LOBBY_STATE_NOT_CONNECTED; }
 
 	class ConnectionData : public RefCounted {
 		GDCLASS(ConnectionData, RefCounted);
@@ -147,10 +149,14 @@ public:
 				pending_retry_packets.pop_front();
 			}
 		}
-		bool operator==(const ConnectionData &data) {
-			return steam_id == data.steam_id;
+		bool operator==(const ConnectionData &data) {			return steam_id == data.steam_id;
 		}
 		EResult rawSend(Packet *packet) {
+			if(packet->channel == CHANNEL_MANAGEMENT::PING_CHANNEL){
+				if(packet->size != sizeof(PingPayload)){
+					print_error("NOPE THATS THE WRONG SHIT!");
+				}
+			}
 			return SteamNetworkingMessages()->SendMessageToUser(networkIdentity, packet->data, packet->size, packet->transfer_mode, packet->channel);
 		}
 		Error send(Packet *packet) {
@@ -158,13 +164,12 @@ public:
 			if (errorCode == k_EResultOK) {
 				delete packet;
 				int startingSize = pending_retry_packets.size();
-				packet = pending_retry_packets.front()->get();
 				while (pending_retry_packets.size() != 0) {
+					packet = pending_retry_packets.front()->get();
 					auto error = rawSend(packet);
 					if (error == k_EResultOK) {
 						delete packet;
 						pending_retry_packets.pop_front();
-						packet = pending_retry_packets.front()->get();
 					} else {
 						ERR_PRINT("RESNED ERROR!");
 						break;
@@ -255,6 +260,7 @@ public:
 	STEAM_CALLBACK(SteamMultiplayerPeer, network_messages_session_request_scb, SteamNetworkingMessagesSessionRequest_t, callbackNetworkMessagesSessionRequest);
 	STEAM_CALLBACK(SteamMultiplayerPeer, network_messages_session_failed_scb, SteamNetworkingMessagesSessionFailed_t, callbackNetworkMessagesSessionFailed);
 	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_joined_scb, LobbyEnter_t, callbackLobbyJoined);
+	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_data_update, LobbyDataUpdate_t, callbackLobbyDataUpdate);
 
 	int _get_steam_transfer_flag();
 
@@ -267,7 +273,7 @@ public:
 
 		output["lobby_id"] = steamIdToDict(lobby_id);
 		output["lobby_owner"] = steamIdToDict(lobby_owner);
-		output["steam_id"] = steamIdToDict(steam_id);
+		output["steam_id"] = steamIdToDict(SteamUser()->GetSteamID());
 		output["lobby_state"] = lobby_state;
 		output["no_nagle"] = no_nagle;
 		output["no_delay"] = no_delay;

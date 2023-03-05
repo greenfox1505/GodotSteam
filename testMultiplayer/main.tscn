@@ -157,14 +157,6 @@ func _on_ip_address_text_submitted(new_text):
 	_on_join_pressed()
 "
 
-[sub_resource type="GDScript" id="GDScript_hf7d5"]
-script/source = "extends Label
-
-
-func _on_button_pressed():
-	DisplayServer.clipboard_set(text)
-"
-
 [sub_resource type="GDScript" id="GDScript_xrfl3"]
 script/source = "extends VBoxContainer
 
@@ -180,15 +172,11 @@ signal gameEnd
 var peer :SteamMultiplayerPeer
 
 
-
-
-
-
 var LOBBY_STATE = {
-	SteamMultiplayerPeer.HOST_PENDING : \"HOST_PENDING\",
-	SteamMultiplayerPeer.HOSTING : \"HOSTING\",
-	SteamMultiplayerPeer.CLIENT_PENDING : \"CLIENT_PENDING\",
-	SteamMultiplayerPeer.CLIENT : \"CLIENT\",
+	SteamMultiplayerPeer.LOBBY_STATE_HOST_PENDING : \"HOST_PENDING\",
+	SteamMultiplayerPeer.LOBBY_STATE_HOSTING : \"HOSTING\",
+	SteamMultiplayerPeer.LOBBY_STATE_CLIENT_PENDING : \"CLIENT_PENDING\",
+	SteamMultiplayerPeer.LOBBY_STATE_CLIENT : \"CLIENT\",
 }
 
 
@@ -200,7 +188,10 @@ func _ready():
 		return
 	var a = Steam.steamInit()
 	assert(a.status == 1,\"steam did not init properly. msg:\" + a.verbal )
-	
+
+	(get_tree().get_multiplayer() as SceneMultiplayer).server_relay = true
+
+
 	Steam.join_requested.connect(join_requested)
 
 
@@ -226,7 +217,7 @@ func _process(delta):
 func _on_host_pressed():
 	setUpNewPeer()
 	networkManager.createMsg(\"hosting!\")
-	peer.create_lobby(SteamMultiplayerPeer.PRIVATE,99)
+	peer.create_lobby(SteamMultiplayerPeer.LOBBY_TYPE_FRIENDS_ONLY,99)
 	
 	get_tree().get_multiplayer().set_multiplayer_peer(peer)
 	gameStart.emit()
@@ -252,6 +243,14 @@ func _on_quit_pressed():
 		return #do nothing
 	peer.close()
 	peer = null
+"
+
+[sub_resource type="GDScript" id="GDScript_hf7d5"]
+script/source = "extends Label
+
+
+func _on_button_pressed():
+	DisplayServer.clipboard_set(text)
 "
 
 [sub_resource type="GDScript" id="GDScript_kw7au"]
@@ -368,145 +367,156 @@ func _on_node_game_end():
 script = SubResource("GDScript_xoiub")
 clearOldMessages = false
 
-[node name="connectPanel" type="PanelContainer" parent="."]
-anchors_preset = 9
+[node name="MarginContainer" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = 873.0
+offset_right = -448.0
+grow_horizontal = 2
 grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
 
-[node name="MarginContainer" type="MarginContainer" parent="connectPanel"]
+[node name="connectPanel" type="PanelContainer" parent="MarginContainer"]
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/connectPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
 
-[node name="VBoxContainer" type="VBoxContainer" parent="connectPanel/MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/connectPanel/MarginContainer"]
 layout_mode = 2
 
-[node name="Label2" type="Label" parent="connectPanel/MarginContainer/VBoxContainer"]
+[node name="versionHash" type="Label" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "This will contain a random hash for versioning"
 script = ExtResource("3_lkgk7")
 
-[node name="Label" type="Label" parent="connectPanel/MarginContainer/VBoxContainer"]
+[node name="peerList" type="Label" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 script = SubResource("GDScript_lehj8")
 
-[node name="HBoxContainer" type="HBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="enet" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="enet" type="VBoxContainer" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 alignment = 1
 script = SubResource("GDScript_v4g54")
 
-[node name="EnetTitle" type="Label" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
+[node name="EnetTitle" type="Label" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
 layout_mode = 2
 text = "ENet"
 
-[node name="HBoxContainer" type="HBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
 layout_mode = 2
 
-[node name="Host" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/HBoxContainer"]
+[node name="Host" type="Button" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 0
 text = "Host"
 
-[node name="Join" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/HBoxContainer"]
+[node name="Join" type="Button" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 0
 text = "Join
 "
 
-[node name="ipAddress" type="LineEdit" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
+[node name="ipAddress" type="LineEdit" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 text = "localhost"
 placeholder_text = "IP"
 
-[node name="portNumber" type="SpinBox" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
+[node name="portNumber" type="SpinBox" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
 unique_name_in_owner = true
 layout_mode = 2
 max_value = 65535.0
 value = 8888.0
 
-[node name="Quit" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
+[node name="Quit" type="Button" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet"]
 layout_mode = 2
 focus_mode = 0
 text = "Quit"
 
-[node name="HSplitContainer" type="HSplitContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="HSplitContainer" type="HSplitContainer" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ScrollContainer" type="ScrollContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer"]
+[node name="ScrollContainer" type="ScrollContainer" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer"]
 clip_contents = false
 layout_mode = 2
 size_flags_horizontal = 3
 horizontal_scroll_mode = 0
 
-[node name="messageQueue" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/ScrollContainer"]
+[node name="messageQueue" type="VBoxContainer" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/ScrollContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="spacer" type="Control" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/ScrollContainer/messageQueue"]
+[node name="spacer" type="Control" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/ScrollContainer/messageQueue"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="VBoxContainer" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer"]
+[node name="Steam" type="VBoxContainer" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ScrollContainer" type="ScrollContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/VBoxContainer"]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="debugData" type="Label" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/VBoxContainer/ScrollContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "hello world"
-script = SubResource("GDScript_hf7d5")
-
-[node name="Button" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/VBoxContainer"]
-layout_mode = 2
-text = "Copy Debug Data"
-
-[node name="steam" type="VBoxContainer" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer" node_paths=PackedStringArray("networkManager")]
+[node name="steam" type="VBoxContainer" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam" node_paths=PackedStringArray("networkManager")]
 unique_name_in_owner = true
 layout_mode = 2
 alignment = 1
 script = SubResource("GDScript_xrfl3")
 useSteam = true
-networkManager = NodePath("../../../../..")
+networkManager = NodePath("../../../../../../../..")
 
-[node name="SteamTitle" type="Label" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam"]
+[node name="SteamTitle" type="Label" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam"]
 layout_mode = 2
 text = "Steam"
 
-[node name="Host" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam"]
+[node name="Host" type="Button" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam"]
 layout_mode = 2
 focus_mode = 0
 text = "Host"
 
-[node name="Quit" type="Button" parent="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam"]
+[node name="Quit" type="Button" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam"]
 layout_mode = 2
 focus_mode = 0
 text = "Quit"
 
+[node name="ScrollContainer" type="ScrollContainer" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="debugData" type="Label" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/ScrollContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+text = "hello world"
+script = SubResource("GDScript_hf7d5")
+
+[node name="Button" type="Button" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam"]
+layout_mode = 2
+text = "Copy Debug Data"
+
 [node name="pingPanel" type="VBoxContainer" parent="."]
-offset_left = 1133.0
-offset_top = 17.0
-offset_right = 1261.0
-offset_bottom = 180.0
+offset_left = 1280.0
+offset_right = 1408.0
+offset_bottom = 163.0
 rotation = 1.5708
 script = SubResource("GDScript_kw7au")
 
@@ -533,7 +543,7 @@ character = ExtResource("2_tthkw")
 [node name="StaticBody2D" type="StaticBody2D" parent="dumbGame"]
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="dumbGame/StaticBody2D"]
-polygon = PackedVector2Array(0, 0, 0, 648, 1152, 648, 1152, 0, 0, 0, -64, -64, 1216, -64, 1216, 712, -64, 712, -64, -64)
+polygon = PackedVector2Array(0, 0, 0, 720, 1280, 720, 1280, 0, 0, 0, -64, -64, 1344, -64, 1344, 784, -64, 784, -64, -64)
 
 [node name="PlayerSpawner" type="MultiplayerSpawner" parent="dumbGame"]
 spawn_path = NodePath("..")
@@ -542,18 +552,18 @@ spawn_path = NodePath("..")
 [connection signal="gameStart" from="." to="dumbGame" method="_on_node_game_start"]
 [connection signal="playerConnected" from="." to="dumbGame" method="_on_node_player_connected"]
 [connection signal="playerDisconnected" from="." to="dumbGame" method="_on_node_player_disconnected"]
-[connection signal="cleanup" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="cleanupNetwork"]
-[connection signal="gameEnd" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="endGame"]
-[connection signal="gameStart" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="startGame"]
-[connection signal="msg" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="createMsg"]
-[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/HBoxContainer/Host" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_host_pressed"]
-[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/HBoxContainer/Join" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_join_pressed"]
-[connection signal="text_submitted" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/ipAddress" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_ip_address_text_submitted"]
-[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/Quit" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_quit_pressed"]
-[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/VBoxContainer/Button" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/VBoxContainer/ScrollContainer/debugData" method="_on_button_pressed"]
-[connection signal="cleanup" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" to="." method="cleanupNetwork"]
-[connection signal="gameStart" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" to="." method="startGame"]
-[connection signal="msg" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" to="." method="createMsg"]
-[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam/Host" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" method="_on_host_pressed"]
-[connection signal="pressed" from="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam/Quit" to="connectPanel/MarginContainer/VBoxContainer/HBoxContainer/steam" method="_on_quit_pressed"]
+[connection signal="cleanup" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="cleanupNetwork"]
+[connection signal="gameEnd" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="endGame"]
+[connection signal="gameStart" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="startGame"]
+[connection signal="msg" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" to="." method="createMsg"]
+[connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/HBoxContainer/Host" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_host_pressed"]
+[connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/HBoxContainer/Join" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_join_pressed"]
+[connection signal="text_submitted" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/ipAddress" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_ip_address_text_submitted"]
+[connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet/Quit" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/enet" method="_on_quit_pressed"]
+[connection signal="cleanup" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" to="." method="cleanupNetwork"]
+[connection signal="gameStart" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" to="." method="startGame"]
+[connection signal="msg" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" to="." method="createMsg"]
+[connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/Host" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" method="_on_host_pressed"]
+[connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/Quit" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" method="_on_quit_pressed"]
+[connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/Button" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/ScrollContainer/debugData" method="_on_button_pressed"]
 [connection signal="pressed" from="pingPanel/Button" to="pingPanel" method="_on_button_pressed"]
