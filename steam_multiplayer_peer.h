@@ -22,7 +22,6 @@ public:
 	Dictionary get_peer_info(int i);
 
 public:
-
 	// Matchmaking call results ///////////// stolen
 	CCallResult<SteamMultiplayerPeer, LobbyCreated_t> callResultCreateLobby;
 	void lobby_created_scb(LobbyCreated_t *call_data, bool io_failure);
@@ -149,11 +148,12 @@ public:
 				pending_retry_packets.pop_front();
 			}
 		}
-		bool operator==(const ConnectionData &data) {			return steam_id == data.steam_id;
+		bool operator==(const ConnectionData &data) {
+			return steam_id == data.steam_id;
 		}
 		EResult rawSend(Packet *packet) {
-			if(packet->channel == CHANNEL_MANAGEMENT::PING_CHANNEL){
-				if(packet->size != sizeof(PingPayload)){
+			if (packet->channel == CHANNEL_MANAGEMENT::PING_CHANNEL) {
+				if (packet->size != sizeof(PingPayload)) {
 					print_error("NOPE THATS THE WRONG SHIT!");
 				}
 			}
