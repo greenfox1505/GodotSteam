@@ -10,6 +10,12 @@ class SteamID : public RefCounted {
 	CSteamID data;
 
 public:
+	SteamID() {
+		data = CSteamID();
+	}
+	SteamID(CSteamID steamid) {
+		data = steamid;
+	}
 	void setData(CSteamID value) {
 		data = value;
 	}
@@ -18,6 +24,9 @@ public:
 	}
 	void from_int(uint64 i) {
 		data.SetFromUint64(i);
+	}
+	void from_CSteamID(CSteamID i) {
+		data = i;
 	}
 	uint32 get_account_id() { return data.GetAccountID(); }
 	uint32 get_un_account_instance() { return data.GetUnAccountInstance(); }
@@ -50,6 +59,7 @@ public:
 	inline bool operator!=(const SteamID &val) const { return data != val.data; }
 
 	static void _bind_methods();
+
 };
 
 #endif // STEAM_ID

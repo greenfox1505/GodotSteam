@@ -24,9 +24,9 @@ public:
 public:
 	// Matchmaking call results ///////////// stolen
 	CCallResult<SteamMultiplayerPeer, LobbyCreated_t> callResultCreateLobby;
-	void lobby_created(LobbyCreated_t *call_data, bool io_failure);
+	void lobby_created_scb(LobbyCreated_t *call_data, bool io_failure);
 	CCallResult<SteamMultiplayerPeer, LobbyMatchList_t> callResultLobbyList;
-	void lobby_match_list(LobbyMatchList_t *call_data, bool io_failure);
+	void lobby_match_list_scb(LobbyMatchList_t *call_data, bool io_failure);
 
 	CSteamID lobby_id = CSteamID();
 	CSteamID lobby_owner = CSteamID();
@@ -166,6 +166,7 @@ public:
 						pending_retry_packets.pop_front();
 						packet = pending_retry_packets.front()->get();
 					} else {
+						ERR_PRINT("RESNED ERROR!");
 						break;
 					}
 				}
@@ -200,7 +201,7 @@ public:
 			auto p = PingPayload();
 			return ping(p);
 		}
-		Dictionary getData() {
+		Dictionary collect_debug_data() {
 			Dictionary output;
 			output["peer_id"] = peer_id;
 			output["steam_id"] = steam_id.GetAccountID();
@@ -232,13 +233,13 @@ public:
 		}
 	};
 
-	HashMap<__int64, Ref<ConnectionData>> connections_by_steamId;
+	HashMap<__int64, Ref<ConnectionData>> connections_by_steamId64;
 
-	HashMap<__int64, int> steamId_to_peerId;
+	HashMap<__int64, int> steamId64_to_peerId;
 	HashMap<int, CSteamID> peerId_to_steamId;
 
-	int get_peer_id(CSteamID steamId);
-	CSteamID get_steam_id(int peer);
+	int get_peer_by_steam_id(CSteamID steamId);
+	CSteamID get_steam_id_by_peer(int peer);
 	void set_steam_id_peer(CSteamID steamId, int peer_id);
 	Ref<ConnectionData> get_connection_by_peer(int peer_id);
 
@@ -272,12 +273,13 @@ public:
 		output["no_delay"] = no_delay;
 		output["target_peer"] = target_peer;
 		output["unique_id"] = unique_id;
-		// output["transfer_mode"] = transfer_mode;
 
-		// incoming_packets
-		// connections_by_steamId
-		// steamId_to_peerId
-		// peerId_to_steamId
+		Array connections;
+		for (auto E = connections_by_steamId64.begin(); E; ++E) {
+			auto qwer = E->value->collect_debug_data();
+			connections.push_back(qwer);
+		}
+		output["connections"] = connections;
 
 		return output;
 	}

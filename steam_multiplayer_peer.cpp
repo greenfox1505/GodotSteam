@@ -80,7 +80,8 @@ int SteamMultiplayerPeer::_get_steam_transfer_flag() {
 	// return k_nSteamNetworkingSend_ReliableNoNagle; //todo this helped fix some bugs with unreliable packets
 	auto transferMode = get_transfer_mode();
 
-	auto agroFlag = k_nSteamNetworkingSend_UseCurrentThread | k_nSteamNetworkingSend_AutoRestartBrokenSession;
+	// auto agroFlag = k_nSteamNetworkingSend_UseCurrentThread | k_nSteamNetworkingSend_AutoRestartBrokenSession;
+	auto agroFlag = 0;
 
 	auto autoFlags = (k_nSteamNetworkingSend_NoNagle * no_nagle) |
 			(k_nSteamNetworkingSend_NoDelay * no_delay) | agroFlag;
@@ -93,9 +94,7 @@ int SteamMultiplayerPeer::_get_steam_transfer_flag() {
 			return k_nSteamNetworkingSend_Unreliable | autoFlags;
 			break;
 		case TransferMode::TRANSFER_MODE_UNRELIABLE_ORDERED:
-			ERR_FAIL_V_MSG(
-					k_nSteamNetworkingSend_Reliable | autoFlags,
-					"UNRELIABLE UNORDERED NOT SUPPORTED! SENDING AS RELIABLE!");
+			ERR_FAIL_V_MSG(k_nSteamNetworkingSend_Reliable | autoFlags, "UNRELIABLE UNORDERED NOT SUPPORTED! SENDING AS RELIABLE!");
 			break;
 	}
 	ERR_FAIL_V_MSG(-1, "flags error. not sure what happened!?");
@@ -107,7 +106,7 @@ Error SteamMultiplayerPeer::put_packet(const uint8_t *p_buffer, int p_buffer_siz
 
 	if (target_peer == 0) { // send to ALL
 		auto returnValue = OK;
-		for (auto E = connections_by_steamId.begin(); E; ++E) {
+		for (auto E = connections_by_steamId64.begin(); E; ++E) {
 			auto packet = new Packet(p_buffer, p_buffer_size, transferMode, channel);
 			auto errorCode = E->value->send(packet);
 			if (errorCode != OK) {
@@ -181,7 +180,7 @@ void SteamMultiplayerPeer::poll() {
 	}
 	{
 		auto a = PingPayload();
-		for (auto E = connections_by_steamId.begin(); E; ++E) {
+		for (auto E = connections_by_steamId64.begin(); E; ++E) {
 			auto t = OS::get_singleton()->get_ticks_msec() - MAX_TIME_WITHOUT_MESSAGE; // pretty sure this will wrap. Should I fix this?
 			auto key = E->key;
 			Ref<SteamMultiplayerPeer::ConnectionData> value = E->value;
@@ -223,12 +222,12 @@ void SteamMultiplayerPeer::process_ping(const SteamNetworkingMessage_t *msg) {
 		auto p = PingPayload();
 		p.peer_id = unique_id;
 		p.steam_id = SteamUser()->GetSteamID();
-		auto err = connections_by_steamId[msg->m_identityPeer.GetSteamID64()]->ping(p);
+		auto err = connections_by_steamId64[msg->m_identityPeer.GetSteamID64()]->ping(p);
 		if (err != OK) {
 			DEBUG_DATA_SIGNAL_V("process_ping: ping failed?", err);
 		}
 	} else {
-		auto connection = connections_by_steamId[data->steam_id.ConvertToUint64()];
+		auto connection = connections_by_steamId64[data->steam_id.ConvertToUint64()];
 		if (connection->peer_id == -1) {
 			set_steam_id_peer(data->steam_id, data->peer_id);
 		}
@@ -255,26 +254,26 @@ SteamMultiplayerPeer::ConnectionStatus SteamMultiplayerPeer::get_connection_stat
 	}
 }
 
-int SteamMultiplayerPeer::get_peer_id(CSteamID steamId) {
-	ERR_FAIL_COND_V_MSG(steamId_to_peerId.has(steamId.ConvertToUint64()) == false, -1, "STEAMID NOT CONNECTED!");
-	return steamId_to_peerId[steamId.ConvertToUint64()];
+int SteamMultiplayerPeer::get_peer_by_steam_id(CSteamID steamId) {
+	ERR_FAIL_COND_V_MSG(steamId64_to_peerId.has(steamId.ConvertToUint64()) == false, -1, "STEAMID NOT CONNECTED!");
+	return steamId64_to_peerId[steamId.ConvertToUint64()];
 }
 
-CSteamID SteamMultiplayerPeer::get_steam_id(int peer) {
+CSteamID SteamMultiplayerPeer::get_steam_id_by_peer(int peer) {
 	ERR_FAIL_COND_V_MSG(peerId_to_steamId.has(peer) == false, CSteamID(), "PEER DOES NOT EXIST!");
 	return peerId_to_steamId[peer];
 }
 
 void SteamMultiplayerPeer::set_steam_id_peer(CSteamID steamId, int peer_id) {
-	ERR_FAIL_COND_MSG(connections_by_steamId.has(steamId.ConvertToUint64()) == false, "STEAMID MISSING!");
-	steamId_to_peerId[steamId.ConvertToUint64()] = peer_id;
+	ERR_FAIL_COND_MSG(connections_by_steamId64.has(steamId.ConvertToUint64()) == false, "STEAMID MISSING!");
+	steamId64_to_peerId[steamId.ConvertToUint64()] = peer_id;
 	peerId_to_steamId[peer_id] = steamId;
-	connections_by_steamId[steamId.ConvertToUint64()]->peer_id = peer_id;
+	connections_by_steamId64[steamId.ConvertToUint64()]->peer_id = peer_id;
 	emit_signal("peer_connected", peer_id);
 }
 
 Ref<SteamMultiplayerPeer::ConnectionData> SteamMultiplayerPeer::get_connection_by_peer(int peer_id) {
-	return connections_by_steamId[peerId_to_steamId[peer_id].ConvertToUint64()];
+	return connections_by_steamId64[peerId_to_steamId[peer_id].ConvertToUint64()];
 }
 
 void SteamMultiplayerPeer::add_connection_peer(const CSteamID &steamId, int peer_id) {
@@ -283,7 +282,7 @@ void SteamMultiplayerPeer::add_connection_peer(const CSteamID &steamId, int peer
 		return;
 	}
 	Ref<ConnectionData> ccc = Ref<ConnectionData>(memnew(ConnectionData(steamId)));
-	connections_by_steamId[steamId.ConvertToUint64()] = ccc;
+	connections_by_steamId64[steamId.ConvertToUint64()] = ccc;
 	auto a = ccc->ping();
 	if (a != OK) {
 		DEBUG_DATA_SIGNAL_V("add_connection_peer: Error sending ping", a);
@@ -297,32 +296,30 @@ void SteamMultiplayerPeer::add_pending_peer(const CSteamID &steamId) {
 }
 
 void SteamMultiplayerPeer::removed_connection_peer(const CSteamID &steamId) {
-	int peerId = get_peer_id(steamId);
-	steamId_to_peerId.erase(steamId.ConvertToUint64());
+	int peerId = get_peer_by_steam_id(steamId);
+	steamId64_to_peerId.erase(steamId.ConvertToUint64());
 	peerId_to_steamId.erase(peerId);
 
 	emit_signal("peer_disconnected", peerId);
-	connections_by_steamId.erase(steamId.ConvertToUint64());
+	connections_by_steamId64.erase(steamId.ConvertToUint64());
 }
 
 Error SteamMultiplayerPeer::create_lobby(LOBBY_TYPE lobby_type, int max_players) {
-	ERR_FAIL_COND_V_MSG(lobby_state != LOBBY_STATE::NOT_CONNECTED, ERR_ALREADY_IN_USE, "CANNOT CREATE A LOBBY WHILE IN A LOBBY!");
 	ERR_FAIL_COND_V_MSG(SteamMatchmaking() == NULL, ERR_DOES_NOT_EXIST, "`SteamMatchmaking()` is null.");
+	ERR_FAIL_COND_V_MSG(lobby_state != LOBBY_STATE::NOT_CONNECTED, ERR_ALREADY_IN_USE, "CANNOT CREATE A LOBBY WHILE IN A LOBBY!");
 
 	this->steam_id == Steam::get_singleton()->getSteamID();
 
-	JSON json;
-	auto a = json.stringify(steamIdToDict(steam_id));
-	print_error(a);
+	ERR_PRINT(JSON().stringify(steamIdToDict(steam_id)));
 
 	SteamAPICall_t api_call = SteamMatchmaking()->CreateLobby((ELobbyType)lobby_type, max_players);
-	callResultCreateLobby.Set(api_call, this, &SteamMultiplayerPeer::lobby_created);
+	callResultCreateLobby.Set(api_call, this, &SteamMultiplayerPeer::lobby_created_scb);
 	unique_id = 1;
 	lobby_state = LOBBY_STATE::HOST_PENDING;
 	return OK;
 }
 
-void SteamMultiplayerPeer::lobby_created(LobbyCreated_t *lobby_data, bool io_failure) {
+void SteamMultiplayerPeer::lobby_created_scb(LobbyCreated_t *lobby_data, bool io_failure) {
 	if (io_failure) {
 		lobby_state = LOBBY_STATE::NOT_CONNECTED;
 		ERR_FAIL_MSG("lobby_created failed? idk wtf is happening");
@@ -332,7 +329,7 @@ void SteamMultiplayerPeer::lobby_created(LobbyCreated_t *lobby_data, bool io_fai
 		int connect = lobby_data->m_eResult;
 		lobby_id = lobby_data->m_ulSteamIDLobby;
 		uint64 lobby = lobby_id.ConvertToUint64();
-		emit_signal(SNAME("lobby_created"), connect, lobby); // why do I do this?
+		emit_signal(SNAME("lobby_created"), connect, lobby); // why do I do this? edit: no really, why am I doing this?
 	}
 }
 
@@ -341,10 +338,7 @@ Error SteamMultiplayerPeer::join_lobby(uint64 lobbyId) {
 
 	this->steam_id == Steam::get_singleton()->getSteamID();
 
-	JSON json;
-	auto a = json.stringify(steamIdToDict(steam_id));
-	print_error(a);
-	// ERR_PRINT();
+	ERR_PRINT(JSON().stringify(steamIdToDict(steam_id)));
 
 	if (SteamMatchmaking() != NULL) {
 		lobby_state = LOBBY_STATE::CLIENT_PENDING;
@@ -377,6 +371,7 @@ void SteamMultiplayerPeer::lobby_message_scb(LobbyChatMsg_t *call_data) {
 	incoming_packets.push_back(packet);
 };
 
+//this should happen when someone joins or leaves
 void SteamMultiplayerPeer::lobby_chat_update_scb(LobbyChatUpdate_t *call_data) {
 	if (lobby_id != call_data->m_ulSteamIDLobby) {
 		return;
@@ -402,6 +397,7 @@ void SteamMultiplayerPeer::lobby_chat_update_scb(LobbyChatUpdate_t *call_data) {
 	}
 };
 
+//this happens when you recive a message request from someone.
 void SteamMultiplayerPeer::network_messages_session_request_scb(SteamNetworkingMessagesSessionRequest_t *t) {
 	// search for lobby member
 	CSteamID requester = t->m_identityRemote.GetSteamID();
@@ -413,7 +409,7 @@ void SteamMultiplayerPeer::network_messages_session_request_scb(SteamNetworkingM
 			return;
 		}
 	}
-	ERR_PRINT(String("CONNECTION ATTEMPTED BY PLAYER NOT IN LOBBY!:") + String::num_uint64(requester.GetAccountID()));
+	ERR_PRINT(String("CONNECTION ATTEMPTED BY PLAYER NOT IN LOBBY!?:") + String::num_uint64(requester.GetAccountID()));
 };
 
 void SteamMultiplayerPeer::network_messages_session_failed_scb(SteamNetworkingMessagesSessionFailed_t *call_data) {
@@ -423,6 +419,7 @@ void SteamMultiplayerPeer::network_messages_session_failed_scb(SteamNetworkingMe
 	// emit_signal("network_messages_session_failed", reason);
 }
 
+//called when a player joins a lobby. Including when the host creates and joins
 void SteamMultiplayerPeer::lobby_joined_scb(LobbyEnter_t *lobbyData) {
 	ERR_FAIL_COND_MSG(lobbyData->m_ulSteamIDLobby != this->lobby_id.ConvertToUint64(), "joined a lobby that isn't THIS lobby? this is probably an error? weird");
 
@@ -433,13 +430,14 @@ void SteamMultiplayerPeer::lobby_joined_scb(LobbyEnter_t *lobbyData) {
 			// don't do stuff if you're already the host
 		} else {
 			lobby_state = LOBBY_STATE::CLIENT;
-			add_pending_peer(lobby_owner);
-		}
-		int count = sm->GetNumLobbyMembers(lobby_id);
-		for (int i = 0; i < count; i++) {
-			CSteamID member = sm->GetLobbyMemberByIndex(lobby_id, i);
-			if (member != this->steam_id) { // lobby owner was added above. should happen FIRST
-				add_pending_peer(member);
+			add_pending_peer(lobby_owner); //frist add the lobby owner
+
+			int count = sm->GetNumLobbyMembers(lobby_id);
+			for (int i = 0; i < count; i++) {
+				CSteamID member = sm->GetLobbyMemberByIndex(lobby_id, i);
+				if (member != this->steam_id && member != lobby_owner) { // lobby owner was added above. should happen FIRST
+					add_pending_peer(member);
+				}
 			}
 		}
 	} else {
@@ -759,5 +757,5 @@ String SteamMultiplayerPeer::convertEResultToString(EResult e) {
 }
 
 Dictionary SteamMultiplayerPeer::get_peer_info(int i) {
-	return this->connections_by_steamId[peerId_to_steamId[i].ConvertToUint64()]->getData();
+	return this->connections_by_steamId64[peerId_to_steamId[i].ConvertToUint64()]->collect_debug_data();
 }
