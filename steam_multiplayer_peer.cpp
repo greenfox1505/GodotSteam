@@ -46,7 +46,7 @@ void SteamMultiplayerPeer::_bind_methods() {
 	BIND_ENUM_CONSTANT(CHAT_CHANGE_KICKED);
 	BIND_ENUM_CONSTANT(CHAT_CHANGE_BANNED);
 
-	BIND_ENUM_CONSTANT(CHAT_CHANGE_DISCONNECTED);
+	BIND_ENUM_CONSTANT(LOBBY_STATE_NOT_CONNECTED);
 	BIND_ENUM_CONSTANT(LOBBY_STATE_HOST_PENDING);
 	BIND_ENUM_CONSTANT(LOBBY_STATE_HOSTING);
 	BIND_ENUM_CONSTANT(LOBBY_STATE_CLIENT_PENDING);
@@ -103,7 +103,7 @@ int SteamMultiplayerPeer::_get_steam_transfer_flag() {
 			return k_nSteamNetworkingSend_Unreliable | autoFlags;
 			break;
 		case TransferMode::TRANSFER_MODE_UNRELIABLE_ORDERED:
-			ERR_FAIL_V_MSG(k_nSteamNetworkingSend_Reliable | autoFlags, "UNRELIABLE UNORDERED NOT SUPPORTED! SENDING AS RELIABLE!");
+			ERR_FAIL_V_MSG(k_nSteamNetworkingSend_Reliable | autoFlags, "UNRELIABLE ORDERED NOT SUPPORTED! SENDING AS RELIABLE!");
 			break;
 	}
 	ERR_FAIL_V_MSG(-1, "flags error. not sure what happened!?");
