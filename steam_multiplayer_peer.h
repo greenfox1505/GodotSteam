@@ -293,14 +293,33 @@ public:
 
 // todo: make these empty for release builds
 #define DEBUG_DATA_SIGNAL_V(msg, value) \
-	Dictionary a;                       \
-	a["msg"] = msg;                     \
-	a["value"] = value;                 \
-	emit_signal("debug_data", a)
+	{                                   \
+		Dictionary a;                   \
+		a["msg"] = msg;                 \
+		a["value"] = value;             \
+		emit_signal("debug_data", a);   \
+	}
 
-#define DEBUG_DATA_SIGNAL(msg) \
-	Dictionary a;              \
-	a["msg"] = msg;            \
-	emit_signal("debug_data", a)
+#define DEBUG_DATA_SIGNAL(msg)        \
+	{                                 \
+		Dictionary a;                 \
+		a["msg"] = msg;               \
+		emit_signal("debug_data", a); \
+	}
+
+#define DEBUG_CON_DATA_SIGNAL(con, msg) \
+	if (unlikely(con)) {                \
+		Dictionary a;                   \
+		a["msg"] = msg;                 \
+		emit_signal("debug_data", a);   \
+	}
+
+#define DEBUG_CON_DATA_SIGNAL_V(con, msg, value) \
+	if (unlikely(con)) {                         \
+		Dictionary a;                            \
+		a["msg"] = msg;                          \
+		a["value"] = value;                      \
+		emit_signal("debug_data", a);            \
+	}
 
 #endif

@@ -59,13 +59,17 @@ var lastPosTime:int = 0
 
 var debugData = {};
 
+@export var debug = false
 
 func _ready():
 	position = get_parent().position
 	lastPos = position
 
 func _process(delta):
-	rebuildLabel()
+	if debug == true:
+		rebuildLabel()
+	else:
+		$\"../Label\".text = \"\"
 
 func _physics_process(delta):
 	if is_multiplayer_authority():
@@ -78,7 +82,7 @@ func lerper():
 	if $MultiplayerSynchronizer.replication_interval != 0:
 		var deltaT = (Time.get_ticks_msec() - lastPosTime) / 1000.0
 		var lerpValue = deltaT / $MultiplayerSynchronizer.replication_interval
-		var p = ((position - lastPos) * lerpValue) + lastPos
+		var p = lerp(lastPos,position,lerpValue)
 		var dt = p - get_parent().position
 		var deltaTransform = {
 			lerpValue = lerpValue,
@@ -99,7 +103,6 @@ func set_pos(value):
 		return
 	if lastPosTime == Time.get_ticks_msec():
 		return # this was requried becaus set_pos was being hit multipule times in one frame
-	print(\"deltaTms: \", Time.get_ticks_msec() - lastPosTime)
 	lastPosTime = Time.get_ticks_msec()
 	lastPos = position
 	position = value

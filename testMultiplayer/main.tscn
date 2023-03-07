@@ -235,7 +235,12 @@ func lobby_created(m_eResult,lobbyId):
 func setUpNewPeer():
 	peer = SteamMultiplayerPeer.new()
 	peer.lobby_created.connect(lobby_created)
-	
+	peer.debug_data.connect(debugData)
+
+func debugData(data):
+	var l = Label.new();
+	l.text = JSON.stringify(data)
+	%messageQueue.add_child(l)
 
 
 func _on_quit_pressed():
@@ -492,6 +497,26 @@ text = "Steam"
 layout_mode = 2
 focus_mode = 0
 text = "Host"
+
+[node name="MenuButton" type="MenuButton" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam"]
+visible = false
+layout_mode = 2
+text = "Select Game Type"
+switch_on_hover = true
+item_count = 4
+popup/item_0/text = "Private"
+popup/item_0/checkable = 2
+popup/item_0/checked = true
+popup/item_0/id = 0
+popup/item_1/text = "FriendsOnly"
+popup/item_1/checkable = 2
+popup/item_1/id = 1
+popup/item_2/text = "Public"
+popup/item_2/checkable = 2
+popup/item_2/id = 2
+popup/item_3/text = "Invisable"
+popup/item_3/checkable = 2
+popup/item_3/id = 3
 
 [node name="Quit" type="Button" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam"]
 layout_mode = 2

@@ -277,10 +277,19 @@ CSteamID SteamMultiplayerPeer::get_steam_id_by_peer(int peer) {
 
 void SteamMultiplayerPeer::set_steam_id_peer(CSteamID steamId, int peer_id) {
 	ERR_FAIL_COND_MSG(connections_by_steamId64.has(steamId.ConvertToUint64()) == false, "STEAMID MISSING!");
-	steamId64_to_peerId[steamId.ConvertToUint64()] = peer_id;
-	peerId_to_steamId[peer_id] = steamId;
-	connections_by_steamId64[steamId.ConvertToUint64()]->peer_id = peer_id;
-	emit_signal("peer_connected", peer_id);
+	auto con = connections_by_steamId64[steamId.ConvertToUint64()];
+	if (con->peer_id == -1) {
+		steamId64_to_peerId[steamId.ConvertToUint64()] = peer_id;
+		peerId_to_steamId[peer_id] = steamId;
+		con->peer_id = peer_id;
+		emit_signal("peer_connected", peer_id);
+	} else if (con->peer_id == peer_id) {
+		//nothing happens, set peer that already exists
+	} else {
+		DEBUG_DATA_SIGNAL_V("THIS STEAM ID GOT WRONG PEER ID", steamId.ConvertToUint64());
+		DEBUG_DATA_SIGNAL_V("PEER ID WAS", con->peer_id);
+		DEBUG_DATA_SIGNAL_V("TRYING TO SET AS", peer_id);
+	}
 }
 
 Ref<SteamMultiplayerPeer::ConnectionData> SteamMultiplayerPeer::get_connection_by_peer(int peer_id) {
@@ -346,8 +355,8 @@ Error SteamMultiplayerPeer::join_lobby(uint64 lobbyId) {
 	if (SteamMatchmaking() != NULL) {
 		lobby_state = LOBBY_STATE::LOBBY_STATE_CLIENT_PENDING;
 		this->lobby_id = lobbyId;
-		unique_id = SteamUser()->GetSteamID().GetAccountID();
-		// unique_id = generate_unique_id();
+		// unique_id = SteamUser()->GetSteamID().GetAccountID();
+		unique_id = generate_unique_id();
 		SteamMatchmaking()->JoinLobby(CSteamID(lobbyId));
 	}
 	return OK;
@@ -402,6 +411,7 @@ void SteamMultiplayerPeer::lobby_chat_update_scb(LobbyChatUpdate_t *call_data) {
 
 //this happens when you recive a message request from someone.
 void SteamMultiplayerPeer::network_messages_session_request_scb(SteamNetworkingMessagesSessionRequest_t *t) {
+	DEBUG_CON_DATA_SIGNAL(get_state() != LOBBY_STATE_HOSTING && get_state() != LOBBY_STATE_CLIENT,"RECIVING A CONNECTION BEFORE YOU'RE PROPERLY IN A LOBBY");
 	// search for lobby member
 	CSteamID requester = t->m_identityRemote.GetSteamID();
 	int currentLobbySize = SteamMatchmaking()->GetNumLobbyMembers(lobby_id);
