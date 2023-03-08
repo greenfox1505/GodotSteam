@@ -17,7 +17,7 @@ Dictionary steamIdToDict(CSteamID input);
 class SteamMultiplayerPeer : public MultiplayerPeer {
 public:
 	GDCLASS(SteamMultiplayerPeer, MultiplayerPeer);
-	String convertEResultToString(EResult e);
+	static String convertEResultToString(EResult e);
 
 	Dictionary get_peer_info(int i);
 
@@ -159,42 +159,36 @@ public:
 			}
 			return SteamNetworkingMessages()->SendMessageToUser(networkIdentity, packet->data, packet->size, packet->transfer_mode, packet->channel);
 		}
-		Error send(Packet *packet) {
-			auto errorCode = rawSend(packet);
-			if (errorCode == k_EResultOK) {
-				delete packet;
-				int startingSize = pending_retry_packets.size();
-				while (pending_retry_packets.size() != 0) {
-					packet = pending_retry_packets.front()->get();
-					auto error = rawSend(packet);
-					if (error == k_EResultOK) {
+		Error sendPending() {
+			while (pending_retry_packets.size() != 0) {
+				auto packet = pending_retry_packets.front()->get();
+				auto errorCode = rawSend(packet);
+				if (errorCode == k_EResultOK) {
+					delete packet;
+					pending_retry_packets.pop_front();
+				} else {
+					auto errorString = SteamMultiplayerPeer::convertEResultToString(errorCode);
+					if (packet->transfer_mode & k_nSteamNetworkingSend_Reliable) {
+						ERR_PRINT(String("Send Error! (reliable: will retry):") + errorString);
+						break;
+						//break and try resend later
+					} else {
+						ERR_PRINT(String("Send Error! (unreliable: won't retry):") + errorString);
 						delete packet;
 						pending_retry_packets.pop_front();
-					} else {
-						ERR_PRINT("RESNED ERROR!");
-						break;
+						//toss the unreliable packet and move on?
 					}
 				}
-				// try to resend old packets?
-				return OK;
-			} else {
-				if (packet->transfer_mode & k_nSteamNetworkingSend_Reliable) {
-					pending_retry_packets.push_back(packet);
-				}
-				switch (errorCode) {
-					case k_EResultNoConnection:
-						ERR_FAIL_V_MSG(ERR_DOES_NOT_EXIST, "Send Error: k_EResultNoConnection");
-					case k_EResultRateLimitExceeded:
-						ERR_FAIL_V_MSG(ERR_BUSY, "Send Error: k_EResultRateLimitExceeded");
-					case k_EResultConnectFailed:
-						ERR_FAIL_V_MSG(FAILED, "Send Error: k_EResultConnectFailed");
-					default:
-						ERR_FAIL_V_MSG(ERR_BUG, "Send Error: don't know what this error is, but it's not on the expected errors list...");
-				}
-				// return errorCode;
 			}
+			return OK;
 		}
-		void attemptToResendOldPackets() {
+
+		void addPacket(Packet *packet) {
+			pending_retry_packets.push_back(packet);
+		}
+		Error send(Packet *packet) {
+			addPacket(packet);
+			return sendPending();
 		}
 		Error ping(const PingPayload &p) {
 			last_msg_timestamp = OS::get_singleton()->get_ticks_msec(); // only ping once per maxDeltaT;
@@ -248,7 +242,7 @@ public:
 	void set_steam_id_peer(CSteamID steamId, int peer_id);
 	Ref<ConnectionData> get_connection_by_peer(int peer_id);
 
-	void SteamMultiplayerPeer::add_connection_peer(const CSteamID &steamId, int peer_id);
+	void add_connection_peer(const CSteamID &steamId, int peer_id);
 	void add_pending_peer(const CSteamID &steamId);
 	void removed_connection_peer(const CSteamID &steamId);
 

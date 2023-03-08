@@ -411,7 +411,7 @@ void SteamMultiplayerPeer::lobby_chat_update_scb(LobbyChatUpdate_t *call_data) {
 
 //this happens when you recive a message request from someone.
 void SteamMultiplayerPeer::network_messages_session_request_scb(SteamNetworkingMessagesSessionRequest_t *t) {
-	DEBUG_CON_DATA_SIGNAL(get_state() != LOBBY_STATE_HOSTING && get_state() != LOBBY_STATE_CLIENT,"RECIVING A CONNECTION BEFORE YOU'RE PROPERLY IN A LOBBY");
+	DEBUG_CON_DATA_SIGNAL(get_state() != LOBBY_STATE_HOSTING && get_state() != LOBBY_STATE_CLIENT, "RECIVING A CONNECTION BEFORE YOU'RE PROPERLY IN A LOBBY");
 	// search for lobby member
 	CSteamID requester = t->m_identityRemote.GetSteamID();
 	int currentLobbySize = SteamMatchmaking()->GetNumLobbyMembers(lobby_id);
