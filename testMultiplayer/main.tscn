@@ -179,7 +179,14 @@ var LOBBY_STATE = {
 	SteamMultiplayerPeer.LOBBY_STATE_CLIENT : \"CLIENT\",
 }
 
+@export var lobbyType:SteamMultiplayerPeer.LOBBY_TYPE = SteamMultiplayerPeer.LOBBY_TYPE_FRIENDS_ONLY
 
+var lobbyTypes = [
+	[SteamMultiplayerPeer.LOBBY_TYPE_PRIVATE , \"PRIVATE\"],
+	[SteamMultiplayerPeer.LOBBY_TYPE_FRIENDS_ONLY , \"FRIENDS_ONLY\"],
+	[SteamMultiplayerPeer.LOBBY_TYPE_PUBLIC , \"PUBLIC\"],
+	[SteamMultiplayerPeer.LOBBY_TYPE_INVISIBLE , \"INVISIBLE\"],
+]
 
 
 func _ready():
@@ -190,7 +197,9 @@ func _ready():
 	assert(a.status == 1,\"steam did not init properly. msg:\" + a.verbal )
 
 	(get_tree().get_multiplayer() as SceneMultiplayer).server_relay = true
-
+	
+	for i in lobbyTypes:
+		%LobbyType.add_item(i[1],i[0])
 
 	Steam.join_requested.connect(join_requested)
 
@@ -217,7 +226,7 @@ func _process(delta):
 func _on_host_pressed():
 	setUpNewPeer()
 	networkManager.createMsg(\"hosting!\")
-	peer.create_lobby(SteamMultiplayerPeer.LOBBY_TYPE_FRIENDS_ONLY,99)
+	peer.create_lobby(lobbyType,99)
 	
 	get_tree().get_multiplayer().set_multiplayer_peer(peer)
 	gameStart.emit()
@@ -248,6 +257,12 @@ func _on_quit_pressed():
 		return #do nothing
 	peer.close()
 	peer = null
+
+
+
+func _on_lobby_type_item_selected(index):
+	lobbyType = lobbyTypes[index][0]
+	pass # Replace with function body.
 "
 
 [sub_resource type="GDScript" id="GDScript_hf7d5"]
@@ -498,25 +513,12 @@ layout_mode = 2
 focus_mode = 0
 text = "Host"
 
-[node name="MenuButton" type="MenuButton" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam"]
-visible = false
+[node name="LobbyType" type="OptionButton" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam"]
+unique_name_in_owner = true
 layout_mode = 2
-text = "Select Game Type"
-switch_on_hover = true
-item_count = 4
-popup/item_0/text = "Private"
-popup/item_0/checkable = 2
-popup/item_0/checked = true
-popup/item_0/id = 0
-popup/item_1/text = "FriendsOnly"
-popup/item_1/checkable = 2
-popup/item_1/id = 1
-popup/item_2/text = "Public"
-popup/item_2/checkable = 2
-popup/item_2/id = 2
-popup/item_3/text = "Invisable"
-popup/item_3/checkable = 2
-popup/item_3/id = 3
+focus_mode = 0
+selected = 0
+fit_to_longest_item = false
 
 [node name="Quit" type="Button" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam"]
 layout_mode = 2
@@ -589,6 +591,7 @@ spawn_path = NodePath("..")
 [connection signal="gameStart" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" to="." method="startGame"]
 [connection signal="msg" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" to="." method="createMsg"]
 [connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/Host" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" method="_on_host_pressed"]
+[connection signal="item_selected" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/LobbyType" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" method="_on_lobby_type_item_selected"]
 [connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/Quit" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" method="_on_quit_pressed"]
 [connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/Button" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/ScrollContainer/debugData" method="_on_button_pressed"]
 [connection signal="pressed" from="pingPanel/Button" to="pingPanel" method="_on_button_pressed"]

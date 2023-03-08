@@ -94,7 +94,26 @@ public:
 	LOBBY_STATE get_state() { return lobby_state; }
 
 	bool no_nagle = false;
+	void set_no_nagle(bool value) {
+		no_nagle = value;
+	}
+	bool get_no_nagle() {
+		return no_nagle;
+	}
 	bool no_delay = false;
+	void set_no_delay(bool value) {
+		no_delay = value;
+	}
+	bool get_no_delay() {
+		return no_delay;
+	}
+	bool as_relay = false;
+	void set_as_relay(bool value) {
+		as_relay = value;
+	}
+	bool get_as_relay() {
+		return as_relay;
+	}
 
 	int32_t target_peer = -1;
 	int32_t unique_id = -1;

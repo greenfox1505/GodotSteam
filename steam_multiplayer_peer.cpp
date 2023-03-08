@@ -34,6 +34,18 @@ void SteamMultiplayerPeer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_state"), &SteamMultiplayerPeer::get_state);
 	ClassDB::bind_method(D_METHOD("collect_debug_data"), &SteamMultiplayerPeer::collect_debug_data);
 
+	ClassDB::bind_method(D_METHOD("get_no_nagle"), &SteamMultiplayerPeer::get_no_nagle);
+	ClassDB::bind_method(D_METHOD("get_no_delay"), &SteamMultiplayerPeer::get_no_delay);
+	ClassDB::bind_method(D_METHOD("get_as_relay"), &SteamMultiplayerPeer::get_as_relay);
+
+	ClassDB::bind_method(D_METHOD("set_no_nagle"), &SteamMultiplayerPeer::set_no_nagle);
+	ClassDB::bind_method(D_METHOD("set_no_delay"), &SteamMultiplayerPeer::set_no_delay);
+	ClassDB::bind_method(D_METHOD("set_as_relay"), &SteamMultiplayerPeer::set_as_relay);
+	
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "no_nagle"), "set_no_nagle", "get_no_nagle");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "no_delay"), "set_no_delay", "get_no_delay");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "as_relay"), "set_as_relay", "get_as_relay");
+
 	BIND_ENUM_CONSTANT(LOBBY_TYPE_PRIVATE);
 	BIND_ENUM_CONSTANT(LOBBY_TYPE_FRIENDS_ONLY);
 	BIND_ENUM_CONSTANT(LOBBY_TYPE_PUBLIC);
@@ -135,7 +147,7 @@ int SteamMultiplayerPeer::get_max_packet_size() const {
 }
 
 bool SteamMultiplayerPeer::is_server_relay_supported() const {
-	return true;
+	return as_relay;
 }
 
 void SteamMultiplayerPeer::set_target_peer(int p_peer_id) {
