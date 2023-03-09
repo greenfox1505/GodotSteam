@@ -263,7 +263,6 @@ public:
 			output["sent_unacked_reliable"] = info.m_cbSentUnackedReliable;
 			output["queue_time"] = info.m_usecQueueTime;
 
-
 			output["ping"] = info.m_nPing;
 			return output;
 		}
