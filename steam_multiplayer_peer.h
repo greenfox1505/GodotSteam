@@ -173,7 +173,8 @@ public:
 		EResult rawSend(Packet *packet) {
 			if (packet->channel == CHANNEL_MANAGEMENT::PING_CHANNEL) {
 				if (packet->size != sizeof(PingPayload)) {
-					print_error("NOPE THATS THE WRONG SHIT!");
+					print_error("THIS PING IS THE WRONG SIZE, REJECTING!");
+					return k_EResultFail;
 				}
 			}
 			return SteamNetworkingMessages()->SendMessageToUser(networkIdentity, packet->data, packet->size, packet->transfer_mode, packet->channel);
@@ -188,11 +189,11 @@ public:
 				} else {
 					auto errorString = SteamMultiplayerPeer::convertEResultToString(errorCode);
 					if (packet->transfer_mode & k_nSteamNetworkingSend_Reliable) {
-						ERR_PRINT(String("Send Error! (reliable: will retry):") + errorString);
+						WARN_PRINT(String("Send Error! (reliable: will retry):") + errorString);
 						break;
 						//break and try resend later
 					} else {
-						ERR_PRINT(String("Send Error! (unreliable: won't retry):") + errorString);
+						WARN_PRINT(String("Send Error! (unreliable: won't retry):") + errorString);
 						delete packet;
 						pending_retry_packets.pop_front();
 						//toss the unreliable packet and move on?
@@ -246,6 +247,19 @@ public:
 					output["connection_status"] = "ProblemDetectedLocally";
 					break;
 			}
+			output["packets_per_sec"] = info.m_flOutPacketsPerSec;
+			output["bytes_per_sec"] = info.m_flOutBytesPerSec;
+			output["packets_per_sec"] = info.m_flInPacketsPerSec;
+			output["bytes_per_sec"] = info.m_flInBytesPerSec;
+			output["connection_quality_local"] = info.m_flConnectionQualityLocal;
+			output["connection_quality_remote"] = info.m_flConnectionQualityRemote;
+			output["send_rate_bytes_per_second"] = info.m_nSendRateBytesPerSecond;
+			output["pending_unreliable"] = info.m_cbPendingUnreliable;
+			output["pending_reliable"] = info.m_cbPendingReliable;
+			output["sent_unacked_reliable"] = info.m_cbSentUnackedReliable;
+			output["queue_time"] = info.m_usecQueueTime;
+
+
 			output["ping"] = info.m_nPing;
 			return output;
 		}

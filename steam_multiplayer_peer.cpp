@@ -159,7 +159,7 @@ int SteamMultiplayerPeer::get_packet_peer() const {
 	ERR_FAIL_COND_V(incoming_packets.size() == 0, 1);
 
 	auto a = incoming_packets.front()->get()->sender;
-	return a == lobby_owner ? 1 : a.GetAccountID();
+	return a == lobby_owner ? 1 : steamId64_to_peerId[a.ConvertToUint64()];
 }
 
 SteamMultiplayerPeer::TransferMode SteamMultiplayerPeer::get_packet_mode() const {
