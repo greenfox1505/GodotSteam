@@ -5171,11 +5171,6 @@ void Steam::setPSNID(const String &reference_name, uint64_t psn_id) {
 	networking_identities[reference_name.utf8().get_data()].SetPSNID(psn_id);
 }
 
-// Set the Google Stadia ID for this identity.
-void Steam::setStadiaID(const String &reference_name, uint64_t stadia_id) {
-	networking_identities[reference_name.utf8().get_data()].SetStadiaID(stadia_id);
-}
-
 // Set the Xbox Pairwise ID for this identity.
 bool Steam::setXboxPairwiseID(const String &reference_name, const String &xbox_id) {
 	return networking_identities[reference_name.utf8().get_data()].SetXboxPairwiseID(xbox_id.utf8().get_data());
@@ -10961,7 +10956,6 @@ void Steam::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("setIPv6", "reference_name", "ipv6", "port"), &Steam::setIPv6);
 	ClassDB::bind_method(D_METHOD("setIPv6LocalHost", "reference_name", "port"), &Steam::setIPv6LocalHost, DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("setPSNID", "reference_name", "psn_id"), &Steam::setPSNID);
-	ClassDB::bind_method(D_METHOD("setStadiaID", "reference_name", "stadia_id"), &Steam::setStadiaID);
 	ClassDB::bind_method(D_METHOD("setXboxPairwiseID", "reference_name", "xbox_id"), &Steam::setXboxPairwiseID);
 	ClassDB::bind_method(D_METHOD("toIdentityString", "reference_name"), &Steam::toIdentityString);
 	ClassDB::bind_method(D_METHOD("toIPAddressString", "reference_name", "with_port"), &Steam::toIPAddressString);

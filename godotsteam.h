@@ -2187,7 +2187,6 @@ public:
 	void setIPv6(const String &reference_name, uint8 ipv6, uint16 port);
 	void setIPv6LocalHost(const String &reference_name, uint16 port = 0);
 	void setPSNID(const String &reference_name, uint64_t psn_id);
-	void setStadiaID(const String &reference_name, uint64_t stadia_id);
 	bool setXboxPairwiseID(const String &reference_name, const String &xbox_id);
 	String toIdentityString(const String &reference_name);
 	String toIPAddressString(const String &reference_name, bool with_port);
