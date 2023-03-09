@@ -21,6 +21,10 @@ public:
 
 	Dictionary get_peer_info(int i);
 
+	uint64_t get_steam64_from_peer_id(int peer);
+	int get_peer_id_from_steam64(uint64_t steamid);
+	Dictionary get_peer_map();
+
 public:
 	// Matchmaking call results ///////////// stolen
 	CCallResult<SteamMultiplayerPeer, LobbyCreated_t> callResultCreateLobby;
