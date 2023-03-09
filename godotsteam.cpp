@@ -8229,39 +8229,31 @@ int Steam::getCurrentBatteryPower() {
 }
 
 //! Gets the image bytes from an image handle.
-Dictionary Steam::getImageRGBA(int image) {
-	Dictionary d;
+Image *Steam::getImageRGBA(int index) {
+	Image *output = nullptr;
 	bool success = false;
 	if (SteamUtils() != NULL) {
-		uint32 width;
-		uint32 height;
-		success = SteamUtils()->GetImageSize(image, &width, &height);
-		if (success) {
-			PackedByteArray data;
-			data.resize(width * height * 4);
-			success = SteamUtils()->GetImageRGBA(image, data.ptrw(), data.size());
-			if (success) {
-				d["buffer"] = data;
+		auto a = getImageSize(index);
+		if (a != Vector2i(0, 0)) {
+			Vector<uint8_t> data;
+			data.resize(a.x * a.y * 4);
+			if (SteamUtils()->GetImageRGBA(index, data.ptrw(), data.size())) {
+				output = new Image();
+				output->set_data(a.x, a.y, false, Image::FORMAT_RGBA8, data);
 			}
 		}
 	}
-	d["success"] = success;
-	return d;
+	return output;
 }
 
 //! Gets the size of a Steam image handle.
-Dictionary Steam::getImageSize(int image) {
-	Dictionary d;
+Vector2i Steam::getImageSize(int index) {
+	Vector2i size_of(0, 0);
 	bool success = false;
 	if (SteamUtils() != NULL) {
-		uint32 width;
-		uint32 height;
-		success = SteamUtils()->GetImageSize(image, &width, &height);
-		d["width"] = width;
-		d["height"] = height;
+		success = SteamUtils()->GetImageSize(index, &(uint32)size_of.x, &(uint32)size_of.y);
 	}
-	d["success"] = success;
-	return d;
+	return size_of;
 }
 
 //! Returns the number of IPC calls made since the last time this function was called.

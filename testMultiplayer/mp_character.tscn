@@ -16,6 +16,21 @@ var gravity = ProjectSettings.get_setting(\"physics/2d/default_gravity\")
 
 
 func _ready():
+	var p:SteamMultiplayerPeer = multiplayer.multiplayer_peer 
+	var steamid = p.get_steam64_from_peer_id(get_multiplayer_authority())
+	var index = Steam.getSmallFriendAvatar(steamid)
+	var a = Steam.getImageRGBA(index)
+	
+	if a:
+		var ii = ImageTexture.new()
+		ii.set_image(a)
+		$Icon.texture = ii
+		
+	else:
+		pass
+
+
+func persona_state_change(steam_id: int, flags: int):
 	pass
 
 
@@ -47,7 +62,7 @@ func _physics_process(delta):
 "
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_m1u1p"]
-size = Vector2(16, 16)
+size = Vector2(32, 32)
 
 [sub_resource type="GDScript" id="GDScript_o4mph"]
 script/source = "extends Node
@@ -116,11 +131,10 @@ properties/0/spawn = true
 properties/0/sync = true
 
 [node name="MPCharacter" type="CharacterBody2D"]
-position = Vector2(264, 512)
+position = Vector2(258, 508)
 script = SubResource("GDScript_uf0rk")
 
 [node name="Icon" type="Sprite2D" parent="."]
-scale = Vector2(0.125, 0.125)
 texture = ExtResource("1_tdo4x")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]

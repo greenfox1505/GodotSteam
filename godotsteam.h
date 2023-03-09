@@ -2461,8 +2461,8 @@ public:
 	String getAPICallFailureReason();
 	uint32_t getAppID();
 	int getCurrentBatteryPower();
-	Dictionary getImageRGBA(int image);
-	Dictionary getImageSize(int image);
+	Image *getImageRGBA(int image);
+	Vector2i getImageSize(int image);
 	uint32 getIPCCallCount();
 	String getIPCountry();
 	int getSecondsSinceAppActive();

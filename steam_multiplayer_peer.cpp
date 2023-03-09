@@ -38,22 +38,13 @@ void SteamMultiplayerPeer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_no_delay"), &SteamMultiplayerPeer::get_no_delay);
 	ClassDB::bind_method(D_METHOD("get_as_relay"), &SteamMultiplayerPeer::get_as_relay);
 
-	ClassDB::bind_method(D_METHOD("set_no_nagle"), &SteamMultiplayerPeer::set_no_nagle);
-	ClassDB::bind_method(D_METHOD("set_no_delay"), &SteamMultiplayerPeer::set_no_delay);
-	ClassDB::bind_method(D_METHOD("set_as_relay"), &SteamMultiplayerPeer::set_as_relay);
-
-
-	ClassDB::bind_method(D_METHOD("set_no_nagle"), &SteamMultiplayerPeer::set_no_nagle);
-	ClassDB::bind_method(D_METHOD("set_no_delay"), &SteamMultiplayerPeer::set_no_delay);
-	ClassDB::bind_method(D_METHOD("set_as_relay"), &SteamMultiplayerPeer::set_as_relay);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "no_nagle"), "set_no_nagle", "get_no_nagle");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "no_delay"), "set_no_delay", "get_no_delay");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "as_relay"), "set_as_relay", "get_as_relay");
 
 	ClassDB::bind_method(D_METHOD("get_steam64_from_peer_id"), &SteamMultiplayerPeer::get_steam64_from_peer_id);
 	ClassDB::bind_method(D_METHOD("get_peer_id_from_steam64"), &SteamMultiplayerPeer::get_peer_id_from_steam64);
 	ClassDB::bind_method(D_METHOD("get_peer_map"), &SteamMultiplayerPeer::get_peer_map);
-
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "no_nagle"), "set_no_nagle", "get_no_nagle");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "no_delay"), "set_no_delay", "get_no_delay");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "as_relay"), "set_as_relay", "get_as_relay");
 
 	BIND_ENUM_CONSTANT(LOBBY_TYPE_PRIVATE);
 	BIND_ENUM_CONSTANT(LOBBY_TYPE_FRIENDS_ONLY);
@@ -803,7 +794,9 @@ Dictionary SteamMultiplayerPeer::get_peer_info(int i) {
 }
 
 uint64_t SteamMultiplayerPeer::get_steam64_from_peer_id(int peer) {
-	if (steamId64_to_peerId.has(peer)) {
+	if (peer == this->unique_id) {
+		return SteamUser()->GetSteamID().ConvertToUint64();
+	} else if (steamId64_to_peerId.has(peer)) {
 		return steamId64_to_peerId[peer];
 	} else {
 		return -1;
@@ -811,7 +804,9 @@ uint64_t SteamMultiplayerPeer::get_steam64_from_peer_id(int peer) {
 }
 
 int SteamMultiplayerPeer::get_peer_id_from_steam64(uint64_t steamid) {
-	if (peerId_to_steamId.has(steamid)) {
+	if (steamid == SteamUser()->GetSteamID().ConvertToUint64()) {
+		return this->unique_id;
+	} else if (peerId_to_steamId.has(steamid)) {
 		return peerId_to_steamId[steamid].ConvertToUint64();
 	} else {
 		return -1;
@@ -820,7 +815,7 @@ int SteamMultiplayerPeer::get_peer_id_from_steam64(uint64_t steamid) {
 
 Dictionary SteamMultiplayerPeer::get_peer_map() {
 	Dictionary output;
-	for (auto E = connections_by_steamId64.begin(); E; ++E) { 
+	for (auto E = connections_by_steamId64.begin(); E; ++E) {
 		output[E->value->peer_id] = E->value->steam_id.ConvertToUint64();
 	}
 	return output;
