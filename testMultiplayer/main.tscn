@@ -245,6 +245,8 @@ func setUpNewPeer():
 	peer = SteamMultiplayerPeer.new()
 	peer.lobby_created.connect(lobby_created)
 	peer.debug_data.connect(debugData)
+	peer.as_relay = %asRelay.toggle_mode
+	
 
 func debugData(data):
 	var l = Label.new();
@@ -508,22 +510,39 @@ networkManager = NodePath("../../../../../../../..")
 layout_mode = 2
 text = "Steam"
 
-[node name="Host" type="Button" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam"]
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam"]
 layout_mode = 2
+
+[node name="Host" type="Button" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
 text = "Host"
 
-[node name="LobbyType" type="OptionButton" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam"]
-unique_name_in_owner = true
+[node name="Quit" type="Button" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/HBoxContainer"]
+visible = false
 layout_mode = 2
-focus_mode = 0
-selected = 0
-fit_to_longest_item = false
-
-[node name="Quit" type="Button" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam"]
-layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
 text = "Quit"
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam"]
+layout_mode = 2
+
+[node name="LobbyType" type="OptionButton" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/HBoxContainer2"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+fit_to_longest_item = false
+
+[node name="asRelay" type="CheckBox" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/HBoxContainer2"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+button_pressed = true
+text = "As Relay"
 
 [node name="ScrollContainer" type="ScrollContainer" parent="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam"]
 layout_mode = 2
@@ -590,8 +609,8 @@ spawn_path = NodePath("..")
 [connection signal="cleanup" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" to="." method="cleanupNetwork"]
 [connection signal="gameStart" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" to="." method="startGame"]
 [connection signal="msg" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" to="." method="createMsg"]
-[connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/Host" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" method="_on_host_pressed"]
-[connection signal="item_selected" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/LobbyType" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" method="_on_lobby_type_item_selected"]
-[connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/Quit" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" method="_on_quit_pressed"]
+[connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/HBoxContainer/Host" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" method="_on_host_pressed"]
+[connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/HBoxContainer/Quit" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" method="_on_quit_pressed"]
+[connection signal="item_selected" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam/HBoxContainer2/LobbyType" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/steam" method="_on_lobby_type_item_selected"]
 [connection signal="pressed" from="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/Button" to="MarginContainer/connectPanel/MarginContainer/VBoxContainer/HBoxContainer/HSplitContainer/Steam/ScrollContainer/debugData" method="_on_button_pressed"]
 [connection signal="pressed" from="pingPanel/Button" to="pingPanel" method="_on_button_pressed"]
