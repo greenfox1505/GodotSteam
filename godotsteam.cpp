@@ -8224,8 +8224,9 @@ int Steam::getCurrentBatteryPower() {
 }
 
 //! Gets the image bytes from an image handle.
-Image *Steam::getImageRGBA(int index) {
-	Image *output = nullptr;
+Ref<Image> Steam::getImageRGBA(int index) {
+	Ref<Image> output;
+	// output.instantiate();
 	bool success = false;
 	if (SteamUtils() != NULL) {
 		auto a = getImageSize(index);
@@ -8233,7 +8234,8 @@ Image *Steam::getImageRGBA(int index) {
 			Vector<uint8_t> data;
 			data.resize(a.x * a.y * 4);
 			if (SteamUtils()->GetImageRGBA(index, data.ptrw(), data.size())) {
-				output = new Image();
+				// output = new Image();
+				output.instantiate();
 				output->set_data(a.x, a.y, false, Image::FORMAT_RGBA8, data);
 			}
 		}

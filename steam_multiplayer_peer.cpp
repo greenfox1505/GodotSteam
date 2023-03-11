@@ -800,8 +800,9 @@ Dictionary SteamMultiplayerPeer::get_peer_info(int i) {
 uint64_t SteamMultiplayerPeer::get_steam64_from_peer_id(int peer) {
 	if (peer == this->unique_id) {
 		return SteamUser()->GetSteamID().ConvertToUint64();
-	} else if (steamId64_to_peerId.has(peer)) {
-		return steamId64_to_peerId[peer];
+	} else if (peerId_to_steamId.has(peer)) { 
+		//this is correct but it's confusing given the function name
+		return peerId_to_steamId[peer].ConvertToUint64();
 	} else {
 		return -1;
 	}
@@ -810,8 +811,9 @@ uint64_t SteamMultiplayerPeer::get_steam64_from_peer_id(int peer) {
 int SteamMultiplayerPeer::get_peer_id_from_steam64(uint64_t steamid) {
 	if (steamid == SteamUser()->GetSteamID().ConvertToUint64()) {
 		return this->unique_id;
-	} else if (peerId_to_steamId.has(steamid)) {
-		return peerId_to_steamId[steamid].ConvertToUint64();
+	} else if (steamId64_to_peerId.has(steamid)) {
+		//this is correct but it's confusing given the function name
+		return steamId64_to_peerId[steamid];
 	} else {
 		return -1;
 	}

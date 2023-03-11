@@ -2460,7 +2460,7 @@ public:
 	String getAPICallFailureReason();
 	uint32_t getAppID();
 	int getCurrentBatteryPower();
-	Image *getImageRGBA(int image);
+	Ref<Image> getImageRGBA(int image);
 	Vector2i getImageSize(int image);
 	uint32 getIPCCallCount();
 	String getIPCountry();
