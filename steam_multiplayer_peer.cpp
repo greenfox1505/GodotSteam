@@ -21,7 +21,8 @@ SteamMultiplayerPeer::SteamMultiplayerPeer() :
 SteamMultiplayerPeer::~SteamMultiplayerPeer() {
 	if (lobby_id != CSteamID()) {
 		SteamMatchmaking()->LeaveLobby(lobby_id);
-	}
+		//todo disconnect all connected peers?
+	} 
 }
 
 uint64 SteamMultiplayerPeer::get_lobby_id() {
@@ -162,8 +163,7 @@ int SteamMultiplayerPeer::get_packet_peer() const {
 	ERR_FAIL_COND_V_MSG(!_is_active(), 1, "The multiplayer instance isn't currently active.");
 	ERR_FAIL_COND_V(incoming_packets.size() == 0, 1);
 
-	auto a = incoming_packets.front()->get()->sender;
-	return a == lobby_owner ? 1 : steamId64_to_peerId[a.ConvertToUint64()];
+	return connections_by_steamId64[incoming_packets.front()->get()->sender.ConvertToUint64()]->peer_id;
 }
 
 SteamMultiplayerPeer::TransferMode SteamMultiplayerPeer::get_packet_mode() const {
@@ -282,22 +282,21 @@ SteamMultiplayerPeer::ConnectionStatus SteamMultiplayerPeer::get_connection_stat
 }
 
 int SteamMultiplayerPeer::get_peer_by_steam_id(CSteamID steamId) {
-	ERR_FAIL_COND_V_MSG(steamId64_to_peerId.has(steamId.ConvertToUint64()) == false, -1, "STEAMID NOT CONNECTED!");
-	return steamId64_to_peerId[steamId.ConvertToUint64()];
+	ERR_FAIL_COND_V_MSG(connections_by_steamId64.has(steamId.ConvertToUint64()) == false, -1, "STEAMID NOT CONNECTED!");
+	return connections_by_steamId64[steamId.ConvertToUint64()]->peer_id;
 }
 
 CSteamID SteamMultiplayerPeer::get_steam_id_by_peer(int peer) {
 	ERR_FAIL_COND_V_MSG(peerId_to_steamId.has(peer) == false, CSteamID(), "PEER DOES NOT EXIST!");
-	return peerId_to_steamId[peer];
+	return peerId_to_steamId[peer]->steam_id;
 }
 
 void SteamMultiplayerPeer::set_steam_id_peer(CSteamID steamId, int peer_id) {
 	ERR_FAIL_COND_MSG(connections_by_steamId64.has(steamId.ConvertToUint64()) == false, "STEAMID MISSING!");
 	auto con = connections_by_steamId64[steamId.ConvertToUint64()];
 	if (con->peer_id == -1) {
-		steamId64_to_peerId[steamId.ConvertToUint64()] = peer_id;
-		peerId_to_steamId[peer_id] = steamId;
 		con->peer_id = peer_id;
+		peerId_to_steamId[peer_id] = con;
 		emit_signal("peer_connected", peer_id);
 	} else if (con->peer_id == peer_id) {
 		//nothing happens, set peer that already exists
@@ -309,7 +308,10 @@ void SteamMultiplayerPeer::set_steam_id_peer(CSteamID steamId, int peer_id) {
 }
 
 Ref<SteamMultiplayerPeer::ConnectionData> SteamMultiplayerPeer::get_connection_by_peer(int peer_id) {
-	return connections_by_steamId64[peerId_to_steamId[peer_id].ConvertToUint64()];
+	if(peerId_to_steamId.has(peer_id)){
+		return peerId_to_steamId[peer_id];
+	}
+	return nullptr;
 }
 
 void SteamMultiplayerPeer::add_connection_peer(const CSteamID &steamId, int peer_id) {
@@ -333,7 +335,6 @@ void SteamMultiplayerPeer::add_pending_peer(const CSteamID &steamId) {
 
 void SteamMultiplayerPeer::removed_connection_peer(const CSteamID &steamId) {
 	int peerId = get_peer_by_steam_id(steamId);
-	steamId64_to_peerId.erase(steamId.ConvertToUint64());
 	peerId_to_steamId.erase(peerId);
 
 	emit_signal("peer_disconnected", peerId);
@@ -794,15 +795,14 @@ String SteamMultiplayerPeer::convertEResultToString(EResult e) {
 }
 
 Dictionary SteamMultiplayerPeer::get_peer_info(int i) {
-	return this->connections_by_steamId64[peerId_to_steamId[i].ConvertToUint64()]->collect_debug_data();
+	return peerId_to_steamId[i]->collect_debug_data();
 }
 
 uint64_t SteamMultiplayerPeer::get_steam64_from_peer_id(int peer) {
 	if (peer == this->unique_id) {
 		return SteamUser()->GetSteamID().ConvertToUint64();
 	} else if (peerId_to_steamId.has(peer)) { 
-		//this is correct but it's confusing given the function name
-		return peerId_to_steamId[peer].ConvertToUint64();
+		return peerId_to_steamId[peer]->steam_id.ConvertToUint64();
 	} else {
 		return -1;
 	}
@@ -811,9 +811,8 @@ uint64_t SteamMultiplayerPeer::get_steam64_from_peer_id(int peer) {
 int SteamMultiplayerPeer::get_peer_id_from_steam64(uint64_t steamid) {
 	if (steamid == SteamUser()->GetSteamID().ConvertToUint64()) {
 		return this->unique_id;
-	} else if (steamId64_to_peerId.has(steamid)) {
-		//this is correct but it's confusing given the function name
-		return steamId64_to_peerId[steamid];
+	} else if (connections_by_steamId64.has(steamid)) {
+		return connections_by_steamId64[steamid]->peer_id;
 	} else {
 		return -1;
 	}

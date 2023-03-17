@@ -269,9 +269,7 @@ public:
 	};
 
 	HashMap<int64_t, Ref<ConnectionData>> connections_by_steamId64;
-
-	HashMap<int64_t, int> steamId64_to_peerId;
-	HashMap<int, CSteamID> peerId_to_steamId;
+	HashMap<int, Ref<ConnectionData>> peerId_to_steamId;
 
 	int get_peer_by_steam_id(CSteamID steamId);
 	CSteamID get_steam_id_by_peer(int peer);
