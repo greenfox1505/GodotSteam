@@ -288,7 +288,7 @@ public:
 	STEAM_CALLBACK(SteamMultiplayerPeer, network_messages_session_request_scb, SteamNetworkingMessagesSessionRequest_t, callbackNetworkMessagesSessionRequest);
 	STEAM_CALLBACK(SteamMultiplayerPeer, network_messages_session_failed_scb, SteamNetworkingMessagesSessionFailed_t, callbackNetworkMessagesSessionFailed);
 	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_joined_scb, LobbyEnter_t, callbackLobbyJoined);
-	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_data_update, LobbyDataUpdate_t, callbackLobbyDataUpdate);
+	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_data_update_scb, LobbyDataUpdate_t, callbackLobbyDataUpdate);
 
 	int _get_steam_transfer_flag();
 
@@ -317,37 +317,36 @@ public:
 
 		return output;
 	}
-	void sendDirectMessage(PackedByteArray a){
-		
+	bool sendDirectMessage(PackedByteArray a) {
+		return SteamMatchmaking()->SendLobbyChatMsg(steam_id, (void *)a.ptr(), a.size());
 	}
-	Array getDirectMessages(){
+	Array getDirectMessages() {
 		Array output;
 		return output;
 	}
 
-	String GetLobbyData(String key){
-		ERR_FAIL_COND_V_MSG(lobby_id.ConvertToUint64() == 0,"null", "CANNOT GET LOBBY DATA IF NOT IN LOBBY");
-		return SteamMatchmaking()->GetLobbyData(lobby_id,(const char *)key.ptr());
+	String GetLobbyData(String key) {
+		ERR_FAIL_COND_V_MSG(lobby_id.ConvertToUint64() == 0, "null", "CANNOT GET LOBBY DATA IF NOT IN LOBBY");
+		return SteamMatchmaking()->GetLobbyData(lobby_id, (const char *)key.ptr());
 		// String output(a);
 		// return a;
 	}
-	bool SetLobbyData(String key, String data){
-		ERR_FAIL_COND_V_MSG(lobby_id.ConvertToUint64() == 0,false, "CANNOT SET LOBBY DATA IF NOT IN LOBBY");
-		return SteamMatchmaking()->SetLobbyData(lobby_id,(const char *)key.ptr(),(const char *)data.ptr());
+	bool SetLobbyData(String key, String data) {
+		ERR_FAIL_COND_V_MSG(lobby_id.ConvertToUint64() == 0, false, "CANNOT SET LOBBY DATA IF NOT IN LOBBY");
+		return SteamMatchmaking()->SetLobbyData(lobby_id, (const char *)key.ptr(), (const char *)data.ptr());
 	}
-	Dictionary GetAllLobbyData(){
+	Dictionary GetAllLobbyData() {
 		Dictionary output;
-		ERR_FAIL_COND_V_MSG(lobby_id.ConvertToUint64() == 0,output, "CANNOT GET LOBBY DATA IF NOT IN LOBBY");
+		ERR_FAIL_COND_V_MSG(lobby_id.ConvertToUint64() == 0, output, "CANNOT GET LOBBY DATA IF NOT IN LOBBY");
 		auto c = SteamMatchmaking()->GetLobbyDataCount(lobby_id);
-		for( int i = 0; i < c; i++){
+		for (int i = 0; i < c; i++) {
 			char key[STEAM_BUFFER_SIZE];
 			char value[STEAM_BUFFER_SIZE];
-			SteamMatchmaking()->GetLobbyDataByIndex(lobby_id,i,key,STEAM_BUFFER_SIZE,value,STEAM_BUFFER_SIZE);
+			SteamMatchmaking()->GetLobbyDataByIndex(lobby_id, i, key, STEAM_BUFFER_SIZE, value, STEAM_BUFFER_SIZE);
 			output[key] = value;
 		}
 		return output;
 	}
-
 };
 
 // todo: make these empty for release builds
