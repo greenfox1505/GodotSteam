@@ -8248,7 +8248,9 @@ Vector2i Steam::getImageSize(int index) {
 	Vector2i size_of(0, 0);
 	bool success = false;
 	if (SteamUtils() != NULL) {
-		success = SteamUtils()->GetImageSize(index, &(uint32)size_of.x, &(uint32)size_of.y);
+		uint32_t size_x = size_of.x;
+		uint32_t size_y = size_of.y;
+		success = SteamUtils()->GetImageSize(index, &size_x, &size_y);
 	}
 	return size_of;
 }

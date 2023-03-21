@@ -25,7 +25,7 @@ SteamMultiplayerPeer::~SteamMultiplayerPeer() {
 	} 
 }
 
-uint64 SteamMultiplayerPeer::get_lobby_id() {
+uint64_t SteamMultiplayerPeer::get_lobby_id() {
 	return lobby_id.ConvertToUint64();
 }
 
@@ -301,7 +301,7 @@ void SteamMultiplayerPeer::set_steam_id_peer(CSteamID steamId, int peer_id) {
 	} else if (con->peer_id == peer_id) {
 		//nothing happens, set peer that already exists
 	} else {
-		DEBUG_DATA_SIGNAL_V("THIS STEAM ID GOT WRONG PEER ID", steamId.ConvertToUint64());
+		DEBUG_DATA_SIGNAL_V("THIS STEAM ID GOT WRONG PEER ID", (uint64_t)steamId.ConvertToUint64());
 		DEBUG_DATA_SIGNAL_V("PEER ID WAS", con->peer_id);
 		DEBUG_DATA_SIGNAL_V("TRYING TO SET AS", peer_id);
 	}
@@ -361,20 +361,20 @@ void SteamMultiplayerPeer::lobby_created_scb(LobbyCreated_t *lobby_data, bool io
 		lobby_state = LOBBY_STATE::LOBBY_STATE_HOSTING;
 		int connect = lobby_data->m_eResult;
 		lobby_id = lobby_data->m_ulSteamIDLobby;
-		uint64 lobby = lobby_id.ConvertToUint64();
+		uint64_t lobby = lobby_id.ConvertToUint64();
 		emit_signal(SNAME("lobby_created"), connect, lobby); // why do I do this? edit: no really, why am I doing this?
 	}
 }
 
-Error SteamMultiplayerPeer::join_lobby(uint64 lobbyId) {
+Error SteamMultiplayerPeer::join_lobby(uint64_t lobbyId) {
 	ERR_FAIL_COND_V_MSG(lobby_state != LOBBY_STATE::LOBBY_STATE_NOT_CONNECTED, ERR_ALREADY_IN_USE, "CANNOT JOIN A LOBBY WHILE IN A LOBBY!");
 
 	if (SteamMatchmaking() != NULL) {
 		lobby_state = LOBBY_STATE::LOBBY_STATE_CLIENT_PENDING;
-		this->lobby_id = lobbyId;
+		this->lobby_id.SetFromUint64(lobbyId);
 		// unique_id = SteamUser()->GetSteamID().GetAccountID();
 		unique_id = generate_unique_id();
-		SteamMatchmaking()->JoinLobby(CSteamID(lobbyId));
+		SteamMatchmaking()->JoinLobby(this->lobby_id);
 	}
 	return OK;
 }
@@ -821,7 +821,7 @@ int SteamMultiplayerPeer::get_peer_id_from_steam64(uint64_t steamid) {
 Dictionary SteamMultiplayerPeer::get_peer_map() {
 	Dictionary output;
 	for (auto E = connections_by_steamId64.begin(); E; ++E) {
-		output[E->value->peer_id] = E->value->steam_id.ConvertToUint64();
+		output[E->value->peer_id] = (uint64_t)E->value->steam_id.ConvertToUint64();
 	}
 	return output;
 }

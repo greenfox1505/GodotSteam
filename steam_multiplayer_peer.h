@@ -38,7 +38,7 @@ public:
 
 	SteamMultiplayerPeer();
 	~SteamMultiplayerPeer();
-	uint64 get_lobby_id();
+	uint64_t get_lobby_id();
 
 	static void _bind_methods();
 
@@ -261,7 +261,7 @@ public:
 			output["pending_unreliable"] = info.m_cbPendingUnreliable;
 			output["pending_reliable"] = info.m_cbPendingReliable;
 			output["sent_unacked_reliable"] = info.m_cbSentUnackedReliable;
-			output["queue_time"] = info.m_usecQueueTime;
+			output["queue_time"] = (uint64_t)info.m_usecQueueTime;
 
 			output["ping"] = info.m_nPing;
 			return output;
@@ -281,7 +281,7 @@ public:
 	void removed_connection_peer(const CSteamID &steamId);
 
 	Error create_lobby(LOBBY_TYPE lobbyType, int max_players);
-	Error join_lobby(uint64 lobbyId);
+	Error join_lobby(uint64_t lobbyId);
 
 	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_message_scb, LobbyChatMsg_t, callbackLobbyMessage);
 	STEAM_CALLBACK(SteamMultiplayerPeer, lobby_chat_update_scb, LobbyChatUpdate_t, callbackLobbyChatUpdate);
