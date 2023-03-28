@@ -347,6 +347,9 @@ public:
 		}
 		return output;
 	}
+	void set_lobby_joinable(bool value){
+		SteamMatchmaking()->SetLobbyJoinable(lobby_id,value);
+	}
 };
 
 // todo: make these empty for release builds

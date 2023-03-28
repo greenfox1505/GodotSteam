@@ -61,6 +61,9 @@ void SteamMultiplayerPeer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_lobby_data","key","value"), &SteamMultiplayerPeer::set_lobby_data);
 	ClassDB::bind_method(D_METHOD("get_all_lobby_data"), &SteamMultiplayerPeer::get_all_lobby_data);
 
+	ClassDB::bind_method(D_METHOD("set_lobby_joinable","joinable"), &SteamMultiplayerPeer::set_lobby_joinable);
+
+
 	BIND_ENUM_CONSTANT(LOBBY_TYPE_PRIVATE);
 	BIND_ENUM_CONSTANT(LOBBY_TYPE_FRIENDS_ONLY);
 	BIND_ENUM_CONSTANT(LOBBY_TYPE_PUBLIC);
