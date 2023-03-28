@@ -317,25 +317,25 @@ public:
 
 		return output;
 	}
-	bool sendDirectMessage(PackedByteArray a) {
+	bool send_direct_message(PackedByteArray a) {
 		return SteamMatchmaking()->SendLobbyChatMsg(steam_id, (void *)a.ptr(), a.size());
 	}
-	Array getDirectMessages() {
+	Array get_direct_messages() {
 		Array output;
 		return output;
 	}
 
-	String GetLobbyData(String key) {
+	String get_lobby_data(String key) {
 		ERR_FAIL_COND_V_MSG(lobby_id.ConvertToUint64() == 0, "null", "CANNOT GET LOBBY DATA IF NOT IN LOBBY");
 		return SteamMatchmaking()->GetLobbyData(lobby_id, (const char *)key.ptr());
 		// String output(a);
 		// return a;
 	}
-	bool SetLobbyData(String key, String data) {
+	bool set_lobby_data(String key, String data) {
 		ERR_FAIL_COND_V_MSG(lobby_id.ConvertToUint64() == 0, false, "CANNOT SET LOBBY DATA IF NOT IN LOBBY");
 		return SteamMatchmaking()->SetLobbyData(lobby_id, (const char *)key.ptr(), (const char *)data.ptr());
 	}
-	Dictionary GetAllLobbyData() {
+	Dictionary get_all_lobby_data() {
 		Dictionary output;
 		ERR_FAIL_COND_V_MSG(lobby_id.ConvertToUint64() == 0, output, "CANNOT GET LOBBY DATA IF NOT IN LOBBY");
 		auto c = SteamMatchmaking()->GetLobbyDataCount(lobby_id);
