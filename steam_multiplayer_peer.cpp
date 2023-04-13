@@ -271,7 +271,8 @@ void SteamMultiplayerPeer::process_ping(const SteamNetworkingMessage_t *msg) {
 }
 
 void SteamMultiplayerPeer::close() {
-	ERR_FAIL_MSG("ERROR:: SteamMultiplayerPeer::close not yet implemented");
+	ERR_FAIL_COND_MSG(lobby_id == CSteamID(), "CAN'T LEAVE A LOBBY IF YOUR'E NOT IN ONE!");
+	SteamMatchmaking()->LeaveLobby(lobby_id);
 }
 
 int SteamMultiplayerPeer::get_unique_id() const {
